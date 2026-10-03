@@ -1,0 +1,1336 @@
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py:49: UserWarning: python-telegram-bot is using upstream urllib3. This is allowed but not supported by python-telegram-bot maintainers.
+  warnings.warn(
+2026-10-02 12:17:06,199 - __main__ - INFO - Bot Cloud Storage FTP (v6.0 Termux Ultra Stable Edition) oleh Ilham Berjalan Stabil...
+2026-10-02 12:17:06,200 - apscheduler.scheduler - INFO - Scheduler started
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py:49: UserWarning: python-telegram-bot is using upstream urllib3. This is allowed but not supported by python-telegram-bot maintainers.
+  warnings.warn(
+2026-10-02 12:18:27,166 - __main__ - INFO - Bot Cloud Storage FTP (v6.0 Termux Ultra Stable Edition) oleh Ilham Berjalan Stabil...
+2026-10-02 12:18:27,166 - apscheduler.scheduler - INFO - Scheduler started
+2026-10-02 12:18:28,427 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:28,429 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:32,796 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:32,796 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:34,077 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:34,080 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:38,972 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:38,973 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:40,697 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:40,698 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:46,166 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:46,167 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:48,642 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:48,642 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:52,308 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:52,310 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:55,941 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:18:55,943 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:00,159 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:00,160 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:01,360 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:01,361 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:06,187 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:06,188 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:07,885 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:07,886 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:13,370 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:13,371 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:15,819 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:15,820 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:19,394 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:19,395 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:22,985 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:22,985 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:28,275 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:28,276 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:33,579 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:33,581 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:41,380 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:41,382 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:49,284 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:19:49,286 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:00,881 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:00,882 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:05,134 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:05,136 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:22,625 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:22,628 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:48,482 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:48,489 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:52,691 - telegram.ext.updater - ERROR - Error while getting Updates: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:52,692 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+    if not action_cb():
+           ~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+    updates = self.bot.get_updates(
+        self.last_update_id,
+    ...<2 lines>...
+        allowed_updates=allowed_updates,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+    updates = super().get_updates(
+        offset=offset,
+    ...<4 lines>...
+        api_kwargs=api_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+    result = func(*args, **kwargs)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+    self._post(
+    ~~~~~~~~~~^
+        'getUpdates',
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        api_kwargs=api_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ),
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+    return self.request.post(
+           ~~~~~~~~~~~~~~~~~^
+        f'{self.base_url}/{endpoint}', data=data, timeout=effective_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+    result = self._request_wrapper(
+        'POST',
+    ...<3 lines>...
+        **urlopen_kwargs,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 283, in _request_wrapper
+    raise Conflict(message)
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-10-02 12:20:54,188 - telegram.ext.updater - INFO - Received signal 15 (SIGTERM), stopping...
+2026-10-02 12:20:54,189 - apscheduler.scheduler - INFO - Scheduler has been shut down
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+  File "/storage/emulated/0/Download/botftp/bot.py", line 1
+    7169837270import os
+             ^
+SyntaxError: invalid decimal literal
+2026-10-02 13:26:13,983 - telegram.ext.updater - INFO - Received signal 15 (SIGTERM), stopping...
+2026-10-02 13:26:14,006 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-10-02 13:26:14,194 - telegram.ext.updater - ERROR - Error while getting Updates: urllib3 HTTPError ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))
+2026-10-02 13:26:14,195 - __main__ - ERROR - Exception occurred while handling an update:
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 716, in urlopen
+    httplib_response = self._make_request(
+        conn,
+    ...<5 lines>...
+        chunked=chunked,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 468, in _make_request
+    six.raise_from(e, None)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "<string>", line 3, in raise_from
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 463, in _make_request
+    httplib_response = conn.getresponse()
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 1450, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 259, in _request_wrapper
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/request.py", line 81, in request
+    return self.request_encode_body(
+           ~~~~~~~~~~~~~~~~~~~~~~~~^
+        method, url, fields=fields, headers=headers, **urlopen_kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/request.py", line 173, in request_encode_body
+    return self.urlopen(method, url, **extra_kw)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/poolmanager.py", line 376, in urlopen
+    response = conn.urlopen(method, u.request_uri, **kw)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 802, in urlopen
+    retries = retries.increment(
+        method, url, error=e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/util/retry.py", line 552, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+          ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/packages/six.py", line 769, in reraise
+    raise value.with_traceback(tb)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 716, in urlopen
+    httplib_response = self._make_request(
+        conn,
+    ...<5 lines>...
+        chunked=chunked,
+    )
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 468, in _make_request
+    six.raise_from(e, None)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "<string>", line 3, in raise_from
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/urllib3/connectionpool.py", line 463, in _make_request
+    httplib_response = conn.getresponse()
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 1450, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 651, in _network_loop_retry
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/updater.py", line 602, in polling_action_cb
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/ext/extbot.py", line 228, in get_updates
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 134, in decorator
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 3140, in get_updates
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/bot.py", line 299, in _post
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 361, in post
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/telegram/utils/request.py", line 265, in _request_wrapper
+telegram.error.NetworkError: urllib3 HTTPError ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))
