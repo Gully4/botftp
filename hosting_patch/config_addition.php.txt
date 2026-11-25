@@ -1,0 +1,6 @@
+Tambahkan ke config.php hosting (jangan menimpa isi config.php yang sudah ada):
+
+define('NEON_GATEWAY_SYNC_TOKEN', 'GANTI_DENGAN_RANDOM_SECRET_MINIMAL_32_KARAKTER');
+
+Gunakan nilai random yang sama persis untuk Replit Secret NEON_HOSTING_SYNC_TOKEN.
+Buat nilai random baru; jangan gunakan token/password lama atau contoh di atas.

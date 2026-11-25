@@ -1,0 +1,25 @@
+PATCH WAJIB UNTUK api.php DASHBOARD
+
+Di api.php yang aktif, cari fungsi gateway_url() lama lalu ganti dengan fungsi berikut.
+Pastikan file neon_runtime.php berada di folder yang sama (seperti yang dipakai monitor_worker.php).
+
+function gateway_url(): string {
+    require_once __DIR__ . '/neon_runtime.php';
+    $saved = '';
+    try {
+        $runtime = neon_runtime_dir();
+        $saved = trim((string) @file_get_contents(rtrim($runtime, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'gateway_url.txt'));
+    } catch (Throwable $e) {
+        $saved = '';
+    }
+    // URL hasil sinkronisasi otomatis memiliki prioritas atas URL lama di session/config.
+    $url = $saved !== '' ? $saved : trim((string) ($_SESSION['neon_gateway_url'] ?? (defined('NEON_GATEWAY_URL') ? NEON_GATEWAY_URL : '')));
+    $parts = parse_url($url);
+    if (!$parts || strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || empty($parts['host'])
+        || !preg_match('/^[a-z0-9-]+\\.trycloudflare\\.com$/i', (string) $parts['host'])) {
+        respond(400, ['ok'=>false, 'error'=>'URL Gateway HTTPS belum tersedia. Pastikan Replit Gateway dan sinkronisasi PHP aktif.']);
+    }
+    return rtrim($url, '/');
+}
+
+Catatan: jangan menghapus autentikasi X-API-Key yang sudah ada di fungsi gateway_call().

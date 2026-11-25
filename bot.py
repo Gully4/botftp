@@ -3,6 +3,7 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import random
+import secrets
 import time
 import html
 import gc
@@ -17,6 +18,8 @@ import json
 import psutil
 import subprocess
 import shutil
+import tempfile
+import uuid
 import re
 import string
 import base64
@@ -24,9 +27,8 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone, timedelta
 from ftplib import FTP, error_perm
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from dotenv import load_dotenv, dotenv_values
+import httpx
 from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -42,11 +44,27 @@ from threading import Thread
 # 1. Load Environment Variables (dual-mode: Termux .env + Replit Secrets)
 # Replit Secrets are already injected into os.environ. override=False ensures a local
 # .env file never overwrites values supplied by the hosting platform.
-load_dotenv(override=False)
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(PROJECT_DIR)
+ENV_FILE = os.path.join(PROJECT_DIR, ".env")
+# Replit Secrets/environment variables have priority. A blank/missing Secret falls
+# back to the local .env value; .env never overwrites a non-empty Secret.
+load_dotenv(ENV_FILE, override=False)
+_DOTENV_FALLBACK = dotenv_values(ENV_FILE) if os.path.isfile(ENV_FILE) else {}
+
+def get_config(key, default=""):
+    """Unified config reader: non-empty runtime Secret > .env > default."""
+    value = os.environ.get(key)
+    if value is not None and str(value).strip() != "":
+        return value
+    fallback = _DOTENV_FALLBACK.get(key)
+    if fallback is not None and str(fallback).strip() != "":
+        return fallback
+    return default
 
 def detect_runtime_mode():
     """Identify hosting environment without logging any secret values."""
-    if any(os.getenv(key) for key in ("REPL_ID", "REPLIT_DEPLOYMENT", "REPLIT_DOMAINS")):
+    if any(get_config(key) for key in ("REPL_ID", "REPLIT_DEPLOYMENT", "REPLIT_DOMAINS")):
         return "Replit Secrets / environment variables"
     if os.path.isfile(".env"):
         return "Termux/local .env + environment variables"
@@ -54,8 +72,13 @@ def detect_runtime_mode():
 
 RUNTIME_MODE = detect_runtime_mode()
 
-BOT_VERSION = "v26.2 NEON OS • Multi-Device + 3 Bots + 10 FTP"
-GEMINI_MODEL = "gemini-2.5-flash"
+BOT_VERSION = "v32.0 NEON OS • REPLIT REMOTE CONTROL EDITION"
+AI_PROVIDER = "Groq"
+AI_MODEL = get_config("GROQ_MODEL", "openai/gpt-oss-20b")
+AI_VISION_MODEL = get_config("GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
+AI_DAILY_LIMIT = max(1, min(100, int(get_config("AI_DAILY_LIMIT", "20"))))
+AI_COOLDOWN_SECONDS = max(1, min(60, int(get_config("AI_COOLDOWN_SECONDS", "4"))))
+AI_MAX_PROMPT_CHARS = max(500, min(12000, int(get_config("AI_MAX_PROMPT_CHARS", "6000"))))
 
 # Set Waktu Indonesia Barat (WIB = UTC+7)
 WIB = timezone(timedelta(hours=7))
@@ -70,8 +93,15 @@ app_web = Flask('')
 def home():
     return f"NEON OS {BOT_VERSION} is alive. uptime={get_uptime()}"
 
+@app_web.route('/health')
+def health():
+    # Never expose tokens, FTP credentials, cookies, or environment values here.
+    return {"ok": True, "service": "NEON OS", "version": BOT_VERSION,
+            "runtime": "replit" if RUNTIME_MODE.startswith("Replit") else "python",
+            "configured_bots": len(BOT_TOKENS) if "BOT_TOKENS" in globals() else 0}
+
 def run_web():
-    port = int(os.getenv('PORT', '8080'))
+    port = int(get_config('PORT', '8080'))
     app_web.run(host='0.0.0.0', port=port)
 
 def keep_alive():
@@ -108,11 +138,11 @@ except Exception as log_exc:
 
 # CONFIGURATION
 # Supports either BOT_TOKENS="token1,token2,token3" or separate token variables.
-raw_tokens = os.getenv("BOT_TOKENS", "")
+raw_tokens = get_config("BOT_TOKENS", "")
 BOT_TOKENS = [token.strip() for token in raw_tokens.split(",") if token.strip()]
 for _token_var in ("BOT_TOKEN", "BOT_TOKEN_1", "BOT_TOKEN_2", "BOT_TOKEN_3",
                    "TELEGRAM_BOT_TOKEN", "TELEGRAM_BOT_TOKEN_2", "TELEGRAM_BOT_TOKEN_3"):
-    _token_value = os.getenv(_token_var, "").strip()
+    _token_value = get_config(_token_var, "").strip()
     if _token_value and _token_value not in BOT_TOKENS:
         BOT_TOKENS.append(_token_value)
 # Multi-bot mode: run every distinct token configured in BOT_TOKENS and/or
@@ -123,20 +153,20 @@ logger.info("Multi-bot mode aktif; %s token unik akan dijalankan jika terkonfigu
 # Multi-FTP failover. Account 1 keeps the legacy FTP_HOST/USER/PASS/PORT names;
 # additional accounts use FTP2_HOST/FTP2_USER/FTP2_PASS/FTP2_PORT ... FTP10_*.
 # Never print passwords or full credentials to logs/Telegram.
-FTP_HOST = os.getenv("FTP_HOST", "ftpupload.net").strip()
-FTP_USER = os.getenv("FTP_USER", "if0_43064672").strip()
-FTP_PASS = os.getenv("FTP_PASS", "").strip()
-FTP_PORT = int(os.getenv("FTP_PORT", "21"))
+FTP_HOST = get_config("FTP_HOST", "").strip()
+FTP_USER = get_config("FTP_USER", "").strip()
+FTP_PASS = get_config("FTP_PASS", "").strip()
+FTP_PORT = int(get_config("FTP_PORT", "21"))
 
 def _load_ftp_accounts():
     accounts = []
     for idx in range(1, 11):
         prefix = "FTP" if idx == 1 else f"FTP{idx}"
-        host = os.getenv(f"{prefix}_HOST", FTP_HOST if idx == 1 else "").strip()
-        user = os.getenv(f"{prefix}_USER", FTP_USER if idx == 1 else "").strip()
-        password = os.getenv(f"{prefix}_PASS", FTP_PASS if idx == 1 else "").strip()
+        host = get_config(f"{prefix}_HOST", FTP_HOST if idx == 1 else "").strip()
+        user = get_config(f"{prefix}_USER", FTP_USER if idx == 1 else "").strip()
+        password = get_config(f"{prefix}_PASS", FTP_PASS if idx == 1 else "").strip()
         try:
-            port = int(os.getenv(f"{prefix}_PORT", str(FTP_PORT if idx == 1 else 21)))
+            port = int(get_config(f"{prefix}_PORT", str(FTP_PORT if idx == 1 else 21)))
         except (TypeError, ValueError):
             port = 21
         # Preserve configured/incomplete extra slots for status display only if any field exists.
@@ -151,45 +181,97 @@ FTP_ACCOUNT_LOCK = __import__("threading").RLock()
 
 # Social downloader configuration. Use only cookies from accounts you own or are
 # authorized to access. Generic cookies are a fallback; per-site values take priority.
-SOCIAL_COOKIES_FILE = os.getenv("SOCIAL_COOKIES_FILE", "").strip()
-YOUTUBE_COOKIES_FILE = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
-TIKTOK_COOKIES_FILE = os.getenv("TIKTOK_COOKIES_FILE", "").strip()
-INSTAGRAM_COOKIES_FILE = os.getenv("INSTAGRAM_COOKIES_FILE", "").strip()
-FACEBOOK_COOKIES_FILE = os.getenv("FACEBOOK_COOKIES_FILE", "").strip()
-X_COOKIES_FILE = os.getenv("X_COOKIES_FILE", "").strip()
+SOCIAL_COOKIES_FILE = get_config("SOCIAL_COOKIES_FILE", "").strip()
+if SOCIAL_COOKIES_FILE and not os.path.isabs(SOCIAL_COOKIES_FILE):
+    SOCIAL_COOKIES_FILE = os.path.join(PROJECT_DIR, SOCIAL_COOKIES_FILE)
+YOUTUBE_COOKIES_FILE = get_config("YOUTUBE_COOKIES_FILE", "").strip()
+if YOUTUBE_COOKIES_FILE and not os.path.isabs(YOUTUBE_COOKIES_FILE):
+    YOUTUBE_COOKIES_FILE = os.path.join(PROJECT_DIR, YOUTUBE_COOKIES_FILE)
+TIKTOK_COOKIES_FILE = get_config("TIKTOK_COOKIES_FILE", "").strip()
+if TIKTOK_COOKIES_FILE and not os.path.isabs(TIKTOK_COOKIES_FILE):
+    TIKTOK_COOKIES_FILE = os.path.join(PROJECT_DIR, TIKTOK_COOKIES_FILE)
+INSTAGRAM_COOKIES_FILE = get_config("INSTAGRAM_COOKIES_FILE", "").strip()
+if INSTAGRAM_COOKIES_FILE and not os.path.isabs(INSTAGRAM_COOKIES_FILE):
+    INSTAGRAM_COOKIES_FILE = os.path.join(PROJECT_DIR, INSTAGRAM_COOKIES_FILE)
+FACEBOOK_COOKIES_FILE = get_config("FACEBOOK_COOKIES_FILE", "").strip()
+if FACEBOOK_COOKIES_FILE and not os.path.isabs(FACEBOOK_COOKIES_FILE):
+    FACEBOOK_COOKIES_FILE = os.path.join(PROJECT_DIR, FACEBOOK_COOKIES_FILE)
+X_COOKIES_FILE = get_config("X_COOKIES_FILE", "").strip()
+if X_COOKIES_FILE and not os.path.isabs(X_COOKIES_FILE):
+    X_COOKIES_FILE = os.path.join(PROJECT_DIR, X_COOKIES_FILE)
 # Default keeps best available quality; optionally set DOWNLOAD_MAX_HEIGHT=720 etc.
-DOWNLOAD_MAX_HEIGHT = os.getenv("DOWNLOAD_MAX_HEIGHT", "").strip()
-DOWNLOAD_TIMEOUT_SECONDS = max(60, min(1800, int(os.getenv("DOWNLOAD_TIMEOUT_SECONDS", "900"))))
-# Permanent local archive for completed downloads; files here are never auto-cleaned.
-DOWNLOADS_DIR = os.path.abspath(os.getenv("DOWNLOADS_DIR", "downloads"))
+DOWNLOAD_MAX_HEIGHT = get_config("DOWNLOAD_MAX_HEIGHT", "").strip()
+DOWNLOAD_TIMEOUT_SECONDS = max(60, min(1800, int(get_config("DOWNLOAD_TIMEOUT_SECONDS", "900"))))
+# Local cache for temporary processing; completed downloads are archived to FTP.
+DOWNLOADS_DIR_RAW = get_config("DOWNLOADS_DIR", ".neon_cache").strip() or ".neon_cache"
+DOWNLOADS_DIR = os.path.abspath(DOWNLOADS_DIR_RAW if os.path.isabs(DOWNLOADS_DIR_RAW) else os.path.join(PROJECT_DIR, DOWNLOADS_DIR_RAW))
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-
-BASE_HTTP_URL = os.getenv("BASE_HTTP_URL", "").strip()
+# Emergency outbox only: files land here only if every FTP upload attempt fails.
+# Successful uploads are removed from the outbox by /ftpretry.
+PENDING_FTP_DIR = os.path.abspath(get_config("PENDING_FTP_DIR", os.path.join(PROJECT_DIR, ".neon_pending_ftp")))
+os.makedirs(PENDING_FTP_DIR, exist_ok=True)
 try:
-    OWNER_ID = int(os.getenv("OWNER_ID", "0"))
+    os.chmod(PENDING_FTP_DIR, 0o700)
+except OSError:
+    pass
+
+BASE_HTTP_URL = get_config("BASE_HTTP_URL", "").strip()
+# Remote web-hosting directory. FTP upload targets htdocs/downloads, not local Termux.
+REMOTE_DOWNLOAD_DIR = get_config("REMOTE_DOWNLOAD_DIR", "htdocs/downloads").strip().strip("/")
+if not REMOTE_DOWNLOAD_DIR or any(part in ("", ".", "..") for part in REMOTE_DOWNLOAD_DIR.replace("\\", "/").split("/")):
+    REMOTE_DOWNLOAD_DIR = "htdocs/downloads"
+try:
+    OWNER_ID = int(get_config("OWNER_ID", "0"))
 except (TypeError, ValueError):
     OWNER_ID = 0
     logger.warning("OWNER_ID tidak valid; akses owner belum aktif sampai ID Telegram disetel.")
 # Comma-separated Telegram user IDs allowed to use normal bot features. Owner is always included.
 ALLOWED_USER_IDS = {OWNER_ID}
-for _uid in os.getenv("ALLOWED_USER_IDS", "").split(","):
+for _uid in get_config("ALLOWED_USER_IDS", "").split(","):
     try:
         if _uid.strip():
             ALLOWED_USER_IDS.add(int(_uid.strip()))
     except ValueError:
         logger.warning("Mengabaikan ID pengguna tidak valid di ALLOWED_USER_IDS")
-AI_DB_FILE = os.getenv("AI_DB_FILE", "ai_history.sqlite3")
+AI_DB_FILE = get_config("AI_DB_FILE", "ai_history.sqlite3")
 AI_HISTORY_LIMIT = 12
 
 
-gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-ai_client = None
-if gemini_api_key:
-    try:
-        ai_client = genai.Client(api_key=gemini_api_key)
-        logger.info("Google GenAI Core berhasil diinisialisasi secara penuh.")
-    except Exception as e:
-        logger.warning(f"Gagal menginisialisasi GenAI: {e}")
+# Single-provider AI. A Groq API key can be used within the provider's free quota;
+# this code never configures billing, switches providers, or falls back to a paid API.
+GROQ_API_KEY = get_config("GROQ_API_KEY", "").strip()
+AI_LAST_REQUEST = {}
+AI_DAILY_USAGE = {}
+AI_USAGE_LOCK = __import__("threading").Lock()
+if GROQ_API_KEY:
+    logger.info("NEON AI provider configured (key value hidden).")
+else:
+    logger.info("NEON AI belum dikonfigurasi: GROQ_API_KEY belum diisi.")
+
+def ai_is_configured():
+    return bool(GROQ_API_KEY)
+
+def ai_usage_allowed(user_id):
+    """In-process per-user cooldown and daily cap shared by all bot workers."""
+    now = time.time()
+    day = get_wib_now().strftime("%Y-%m-%d")
+    with AI_USAGE_LOCK:
+        last = AI_LAST_REQUEST.get(user_id, 0)
+        if now - last < AI_COOLDOWN_SECONDS:
+            return False, "slow"
+        key = (user_id, day)
+        used = AI_DAILY_USAGE.get(key, 0)
+        if used >= AI_DAILY_LIMIT:
+            return False, "limit"
+        AI_LAST_REQUEST[user_id] = now
+        AI_DAILY_USAGE[key] = used + 1
+        # Avoid unbounded growth from old daily buckets and stale users.
+        for old_key in list(AI_DAILY_USAGE):
+            if old_key[1] != day:
+                AI_DAILY_USAGE.pop(old_key, None)
+        if len(AI_LAST_REQUEST) > 10000:
+            AI_LAST_REQUEST.clear()
+        return True, AI_DAILY_USAGE[key]
 
 HISTORY_FILE = "chat_history.json"
 BANNED_FILE = "banned_users.json"
@@ -256,19 +338,56 @@ def delete_user_memory(user_id: int, memory_id=None) -> int:
         db.commit()
         return cur.rowcount
 
-def generate_ai_response(prompt_or_contents):
-    if not ai_client:
+def generate_ai_response(prompt_or_contents, *, model=None, image_data_url=None):
+    """Call only Groq's OpenAI-compatible API. No paid-provider fallback."""
+    if not GROQ_API_KEY:
         return None
-    models_to_try = [GEMINI_MODEL, "gemini-1.5-flash", "gemini-2.5-pro"]
-    for model in models_to_try:
-        try:
-            res = ai_client.models.generate_content(model=model, contents=prompt_or_contents)
-            if res and res.text:
-                return res.text
-        except Exception as e:
-            logger.warning(f"Gagal menggunakan model {model}: {e}")
-            continue
-    return None
+    if isinstance(prompt_or_contents, str):
+        prompt = prompt_or_contents[:AI_MAX_PROMPT_CHARS]
+    else:
+        prompt = str(prompt_or_contents)[:AI_MAX_PROMPT_CHARS]
+    user_content = prompt
+    if image_data_url:
+        user_content = [
+            {"type": "text", "text": prompt or "Extract all readable text from this image. Answer in Indonesian."},
+            {"type": "image_url", "image_url": {"url": image_data_url}},
+        ]
+    payload = {
+        "model": model or AI_MODEL,
+        "messages": [
+            {"role": "system", "content": "Kamu NEON AI, asisten yang ramah, jelas, dan membantu. Jawab sesuai bahasa pengguna. Jangan mengarang fakta; akui jika tidak yakin. Jangan meminta atau menampilkan password, API key, token, atau cookies."},
+            {"role": "user", "content": user_content},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 1200,
+    }
+    try:
+        with httpx.Client(timeout=httpx.Timeout(45.0, connect=10.0), verify=True) as client:
+            response = client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                json=payload,
+            )
+        if response.status_code == 429:
+            logger.warning("AI provider rate limit reached; no provider fallback is configured.")
+            return "Kuota/rate limit AI gratis sedang tercapai. Coba lagi nanti; bot tidak akan beralih ke layanan berbayar."
+        if response.status_code in (401, 403):
+            logger.error("AI provider rejected credentials or access (HTTP %s).", response.status_code)
+            return "Kunci AI ditolak atau akses model tidak tersedia. Periksa konfigurasi provider di dashboard; rahasia tidak ditampilkan di log."
+        response.raise_for_status()
+        data = response.json()
+        choices = data.get("choices") or []
+        content = choices[0].get("message", {}).get("content") if choices else None
+        return content.strip() if isinstance(content, str) and content.strip() else None
+    except httpx.TimeoutException:
+        logger.warning("AI request timed out.")
+        return "Layanan AI terlalu lama merespons. Coba lagi sebentar; tidak ada provider lain yang dipanggil."
+    except httpx.HTTPStatusError as exc:
+        logger.warning("AI provider returned HTTP %s.", exc.response.status_code)
+        return f"Layanan AI menolak permintaan (HTTP {exc.response.status_code}). Cek status model/kuota, lalu coba lagi."
+    except Exception as exc:
+        logger.warning("AI request failed (%s). Secret values are not logged.", type(exc).__name__)
+        return "Layanan AI sedang tidak tersedia atau koneksi gagal. Coba lagi nanti."
 
 # ==================== ADVANCED MULTI-FTP ENGINE ====================
 def ensure_ftp_dir(ftp, directory):
@@ -391,10 +510,16 @@ def check_ftp_accounts():
         ftp = None
         try:
             ftp = _connect_ftp_account(account, timeout=8)
-            # A successful login is the online test; storage/write permissions are tested on upload.
-            results.append({"id": account["id"], "state": "online", "user": account["user"], "host": account["host"], "detail": "login berhasil"})
+            # Login status is deliberately separate from write permission.
+            result = {"id": account["id"], "state": "online", "user": account["user"], "host": account["host"], "detail": "login berhasil"}
+            with FTP_ACCOUNT_LOCK:
+                FTP_ACCOUNT_STATUS[account["id"]] = {"state": "online", "ok": True, "checked": get_wib_now(), "detail": "login berhasil; izin tulis belum dites"}
+            results.append(result)
         except Exception as exc:
-            results.append({"id": account["id"], "state": "offline", "user": account["user"], "host": account["host"], "detail": type(exc).__name__})
+            result = {"id": account["id"], "state": "offline", "user": account["user"], "host": account["host"], "detail": type(exc).__name__}
+            with FTP_ACCOUNT_LOCK:
+                FTP_ACCOUNT_STATUS[account["id"]] = {"state": "offline", "ok": False, "checked": get_wib_now(), "detail": type(exc).__name__}
+            results.append(result)
         finally:
             _close_ftp(ftp)
     online = sum(1 for item in results if item["state"] == "online")
@@ -406,73 +531,222 @@ def check_ftp_accounts():
     return results
 
 
+def _enter_remote_download_dir(ftp, configured_dir=None):
+    """Enter hosting webroot downloads across common FTP root/jail layouts."""
+    configured_dir = (configured_dir or REMOTE_DOWNLOAD_DIR or "htdocs/downloads").replace("\\", "/").strip("/")
+    parts = [p for p in configured_dir.split("/") if p]
+    if not parts or any(p in (".", "..") for p in parts):
+        raise ValueError("REMOTE_DOWNLOAD_DIR tidak valid")
+    try:
+        current = ftp.pwd().rstrip("/")
+    except Exception:
+        current = ""
+    if parts[0].lower() == "htdocs":
+        try:
+            ftp.cwd("htdocs")
+            parts = parts[1:]
+        except Exception:
+            # Some shared hosts jail FTP at htdocs, so downloads/ is the webroot child.
+            if current.lower() == "htdocs" or current.lower().endswith("/htdocs"):
+                parts = parts[1:]
+            elif len(parts) > 1:
+                # Probe an existing downloads/ folder. If absent, the account is
+                # commonly jailed at htdocs; create downloads there rather than
+                # accidentally creating a local folder or failing before upload.
+                try:
+                    ftp.cwd(parts[1])
+                    ftp.cwd("..")
+                except Exception:
+                    pass
+                parts = parts[1:]
+            else:
+                parts = []
+    if parts:
+        ensure_ftp_dir(ftp, "/".join(parts))
+    try:
+        return ftp.pwd()
+    except Exception:
+        return "/".join(parts)
+
+
 def upload_download_to_ftp(local_path, user_id=None):
-    """Upload to the first FTP account that can login AND accept the complete file."""
+    """Upload to the configured hosting directory; publish only after a complete transfer.
+
+    Downloads use a temporary local job folder, then are streamed to FTP. The FTP
+    upload first writes a uniquely named partial file and renames it only after the
+    byte count matches, avoiding broken public files when a connection drops.
+    """
     if not os.path.isfile(local_path):
-        raise FileNotFoundError(local_path)
+        raise FileNotFoundError("File lokal sementara tidak ditemukan")
     if not FTP_ACCOUNTS:
-        raise RuntimeError("Belum ada akun FTP terkonfigurasi")
+        raise RuntimeError("Belum ada akun FTP terkonfigurasi; periksa FTP_HOST/FTP_USER/FTP_PASS")
     original = os.path.basename(local_path)
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", original).strip("._") or "media.bin"
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    remote_name_base = f"{stamp}_{user_id or 'user'}_{safe}"[:220]
+    safe_user = re.sub(r"[^A-Za-z0-9_-]+", "", str(user_id or "user"))[:24] or "user"
+    remote_name_base = f"{stamp}_{safe_user}_{uuid.uuid4().hex[:6]}_{safe}"[:220]
     total = os.path.getsize(local_path)
+    if total <= 0:
+        raise IOError("File kosong; upload FTP dibatalkan")
     errors = []
     for account in FTP_ACCOUNTS:
         if not account.get("configured"):
             continue
         ftp = None
+        partial_name = None
+        final_name = remote_name_base
         try:
             ftp = _connect_ftp_account(account)
-            ensure_ftp_dir(ftp, "downloads")
-            remote_name = remote_name_base
+            actual_dir = _enter_remote_download_dir(ftp, REMOTE_DOWNLOAD_DIR)
             try:
                 existing = set(ftp.nlst())
             except Exception:
                 existing = set()
-            if remote_name in existing:
-                root, ext = os.path.splitext(remote_name)
-                remote_name = f"{root}_{int(time.time() * 1000)}{ext}"
+            if final_name in existing:
+                root, ext = os.path.splitext(final_name)
+                final_name = f"{root}_{int(time.time() * 1000)}{ext}"
+            partial_name = f".{final_name}.{os.getpid()}.part"
+            transferred = 0
+            def callback(block):
+                nonlocal transferred
+                transferred += len(block)
+            with open(local_path, "rb") as source_file:
+                ftp.storbinary(f"STOR {partial_name}", source_file, blocksize=256 * 1024, callback=callback)
+            if transferred != total:
+                raise IOError(f"upload tidak lengkap: {transferred}/{total} byte")
+            # SIZE is supported by most FTP hosts; when supported, independently verify.
+            try:
+                remote_size = ftp.size(partial_name)
+                if remote_size is not None and int(remote_size) != total:
+                    raise IOError(f"verifikasi ukuran gagal: remote {remote_size}, lokal {total} byte")
+            except error_perm:
+                pass  # Some shared hosts disable SIZE; the completed transfer count still applies.
+            ftp.rename(partial_name, final_name)
+            partial_name = None
+            pwd = str(actual_dir or "").replace("\\", "/").rstrip("/")
+            logical_path = (pwd + "/" + final_name) if pwd else (REMOTE_DOWNLOAD_DIR.strip("/") + "/" + final_name)
+            # Public URL path is relative to the hosting web root, not the FTP account root.
+            dir_parts = [part for part in REMOTE_DOWNLOAD_DIR.replace("\\", "/").strip("/").split("/") if part]
+            if dir_parts and dir_parts[0].lower() in ("htdocs", "public_html", "www", "public"):
+                dir_parts = dir_parts[1:]
+            public_relative_path = "/".join(dir_parts + [final_name])
+            public_url = BASE_HTTP_URL.rstrip("/") + "/" + urllib.parse.quote(public_relative_path, safe="/") if BASE_HTTP_URL else ""
+            logger.info("☁️ FTP upload verified: account=%s path=%s bytes=%s", account["id"], logical_path, total)
+            return {"name": final_name, "path": logical_path, "size": total, "url": public_url, "ftp_account": account["id"]}
+        except Exception as exc:
+            errors.append(f"FTP {account['id']}: {type(exc).__name__}")
+            logger.warning("☁️ FTP upload akun %s gagal (%s); mencoba akun berikutnya.", account["id"], type(exc).__name__)
+            if ftp is not None and partial_name:
+                try:
+                    ftp.delete(partial_name)
+                except Exception:
+                    pass
+            with FTP_ACCOUNT_LOCK:
+                FTP_ACCOUNT_STATUS[account["id"]] = {
+                    "state": "online" if ftp is not None else "offline",
+                    "checked": get_wib_now(),
+                    "detail": ("upload gagal: " if ftp is not None else "koneksi gagal: ") + type(exc).__name__
+                }
+        finally:
+            _close_ftp(ftp)
+    raise RuntimeError("Upload ke hosting FTP gagal. Periksa path REMOTE_DOWNLOAD_DIR, izin tulis, dan kredensial. " + "; ".join(errors or ["tidak ada akun FTP lengkap"]))
+
+
+def queue_failed_ftp_upload(local_path, user_id=None, reason="FTP upload gagal"):
+    """Preserve a failed upload in a private local outbox so cleanup cannot destroy it."""
+    if not os.path.isfile(local_path):
+        return None
+    os.makedirs(PENDING_FTP_DIR, exist_ok=True)
+    basename = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(local_path)).strip("._") or "media.bin"
+    uid = re.sub(r"[^A-Za-z0-9_-]+", "", str(user_id or "user"))[:20] or "user"
+    dest = os.path.join(PENDING_FTP_DIR, f"{int(time.time())}_{uid}_{uuid.uuid4().hex[:8]}_{basename}")
+    shutil.copy2(local_path, dest)
+    logger.error("FTP outbox queued file=%s bytes=%s reason=%s", os.path.basename(dest), os.path.getsize(dest), type(reason).__name__ if isinstance(reason, BaseException) else str(reason)[:80])
+    return dest
+
+
+def upload_category_file_to_ftp(local_path, filename, category):
+    """Atomic, collision-safe upload to a category folder under the hosting webroot."""
+    if not os.path.isfile(local_path):
+        raise FileNotFoundError("File lokal sementara tidak ditemukan")
+    total = os.path.getsize(local_path)
+    if total <= 0:
+        raise IOError("File kosong; upload FTP dibatalkan")
+    category = category if category in {"Gambar", "Video", "Audio", "Dokumen", "Arsip_Zip", "Lainnya"} else "Lainnya"
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(filename)).strip("._") or "media.bin"
+    root, ext = os.path.splitext(safe)
+    safe = f"{root[:100]}{ext[:20]}"
+    errors = []
+    for account in FTP_ACCOUNTS:
+        if not account.get("configured"):
+            continue
+        ftp = None
+        partial = None
+        try:
+            ftp = _connect_ftp_account(account)
+            _enter_remote_download_dir(ftp, "htdocs")  # enter webroot, also supports FTP jailed at webroot
+            ensure_ftp_dir(ftp, category)
+            try:
+                existing = set(ftp.nlst())
+            except Exception:
+                existing = set()
+            final_name = safe
+            if final_name in existing:
+                final_name = f"{root[:75]}_{int(time.time()*1000)}_{uuid.uuid4().hex[:5]}{ext[:20]}"
+            partial = f".{final_name}.{uuid.uuid4().hex[:8]}.part"
             transferred = 0
             def callback(block):
                 nonlocal transferred
                 transferred += len(block)
             with open(local_path, "rb") as source:
-                ftp.storbinary(f"STOR {remote_name}", source, blocksize=1024 * 1024, callback=callback)
+                ftp.storbinary(f"STOR {partial}", source, blocksize=256*1024, callback=callback)
             if transferred != total:
                 raise IOError(f"upload tidak lengkap: {transferred}/{total} byte")
-            relative_path = f"downloads/{remote_name}"
-            public_url = BASE_HTTP_URL.rstrip("/") + "/" + urllib.parse.quote(relative_path, safe="/") if BASE_HTTP_URL else ""
-            logger.info("☁️ Upload sukses lewat FTP akun %s (%s byte).", account["id"], total)
-            return {"name": remote_name, "path": relative_path, "size": total, "url": public_url, "ftp_account": account["id"]}
+            try:
+                remote_size = ftp.size(partial)
+                if remote_size is not None and int(remote_size) != total:
+                    raise IOError(f"ukuran remote {remote_size} tidak cocok dengan lokal {total}")
+            except error_perm:
+                pass
+            ftp.rename(partial, final_name)
+            partial = None
+            logger.info("FTP category upload verified: account=%s category=%s name=%s bytes=%s", account["id"], category, final_name, total)
+            return {"name": final_name, "path": f"htdocs/{category}/{final_name}", "size": total, "ftp_account": account["id"]}
         except Exception as exc:
             errors.append(f"FTP {account['id']}: {type(exc).__name__}")
-            logger.warning("☁️ Upload lewat FTP akun %s gagal (%s); mencoba akun berikutnya.", account["id"], type(exc).__name__)
-            # A file/path/application error does not necessarily mean the FTP
-            # account is offline. Only connection/protocol/permission failures
-            # should downgrade the live status; other errors remain diagnostic.
-            if isinstance(exc, (OSError, EOFError, TimeoutError)) or type(exc).__name__ in {
-                "error_perm", "error_reply", "error_temp", "error_proto"
-            }:
-                with FTP_ACCOUNT_LOCK:
-                    FTP_ACCOUNT_STATUS[account["id"]] = {"state": "offline", "checked": get_wib_now(), "detail": "upload gagal: " + type(exc).__name__}
-            else:
-                with FTP_ACCOUNT_LOCK:
-                    FTP_ACCOUNT_STATUS[account["id"]] = {"state": "online", "checked": get_wib_now(), "detail": "login berhasil; operasi upload gagal: " + type(exc).__name__}
+            logger.warning("FTP category upload account=%s failed (%s); trying next account", account["id"], type(exc).__name__)
+            if ftp is not None and partial:
+                try: ftp.delete(partial)
+                except Exception: pass
         finally:
             _close_ftp(ftp)
-    raise RuntimeError("Semua akun FTP gagal menerima file. " + "; ".join(errors or ["tidak ada akun FTP lengkap"]))
+    raise RuntimeError("Upload kategori ke FTP gagal. Periksa path webroot dan izin tulis. " + "; ".join(errors or ["tidak ada akun FTP lengkap"]))
 
 # ==================== UTILS & CLEANER ====================
 def clean_local_temp_files():
-    """Non-destructive maintenance: never delete files from the project folder.
+    """Remove only stale files created by known NEON utility prefixes.
 
-    Older versions removed files by filename prefix (including download_* folders),
-    which could erase user files. Completed downloads are kept in DOWNLOADS_DIR.
-    Per-job scratch folders are removed only by their own finally blocks.
+    User files, databases, cookies, .env, the FTP outbox, and per-job download folders
+    are never swept. A 24-hour grace period avoids deleting files from slow sends.
     """
+    prefixes = ("ss_", "full_", "mob_", "tab_", "dark_", "ocr_", "ai_", "tts_", "qr_", "temp_sync_", "temp_upload_")
+    cutoff = time.time() - 24 * 60 * 60
+    removed = 0
+    try:
+        for name in os.listdir(PROJECT_DIR):
+            if not name.startswith(prefixes):
+                continue
+            path = os.path.join(PROJECT_DIR, name)
+            try:
+                if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                    os.remove(path)
+                    removed += 1
+            except OSError:
+                continue
+    except OSError:
+        pass
     gc.collect()
-    return 0
+    return removed
 
 def load_banned_users():
     if os.path.exists(BANNED_FILE):
@@ -673,7 +947,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🟢 <b>Status:</b> Online\n"
         f"⏱️ <b>Uptime:</b> <code>{html.escape(get_uptime())}</code>\n"
         f"🕒 <b>Waktu:</b> <code>{html.escape(wib_now)} WIB</code>\n"
-        f"🧠 <b>AI:</b> {'Siap digunakan' if ai_client else 'Belum dikonfigurasi'}\n\n"
+        f"🧠 <b>AI:</b> {'Siap digunakan' if ai_is_configured() else 'Belum dikonfigurasi'}\n\n"
         f"Pilih fitur dari tombol di bawah. Kalau butuh bantuan, ketik /help.\n"
         f"━━━━━━━━━━━━━━━━━━━━━━"
     )
@@ -808,7 +1082,7 @@ async def website_screenshot_command(update: Update, context: ContextTypes.DEFAU
 
     if img_data:
         try:
-            temp_ss = f"ss_{int(time.time())}.jpg"
+            temp_ss = f"ss_{uuid.uuid4().hex}.jpg"
             with open(temp_ss, 'wb') as f:
                 f.write(img_data)
             await delete_msg_safe(status)
@@ -845,7 +1119,7 @@ async def full_scroll_screenshot_command(update: Update, context: ContextTypes.D
 
     if img_data:
         try:
-            temp_full = f"full_{int(time.time())}.jpg"
+            temp_full = f"full_{uuid.uuid4().hex}.jpg"
             with open(temp_full, 'wb') as f:
                 f.write(img_data)
             await delete_msg_safe(status)
@@ -882,7 +1156,7 @@ async def mobile_viewport_screenshot_command(update: Update, context: ContextTyp
 
     if img_data:
         try:
-            temp_mob = f"mob_{int(time.time())}.jpg"
+            temp_mob = f"mob_{uuid.uuid4().hex}.jpg"
             with open(temp_mob, 'wb') as f:
                 f.write(img_data)
             await delete_msg_safe(status)
@@ -919,7 +1193,7 @@ async def tablet_viewport_screenshot_command(update: Update, context: ContextTyp
 
     if img_data:
         try:
-            temp_tab = f"tab_{int(time.time())}.jpg"
+            temp_tab = f"tab_{uuid.uuid4().hex}.jpg"
             with open(temp_tab, 'wb') as f:
                 f.write(img_data)
             await delete_msg_safe(status)
@@ -957,7 +1231,7 @@ async def dark_mode_screenshot_command(update: Update, context: ContextTypes.DEF
 
     if img_data:
         try:
-            temp_dark = f"dark_{int(time.time())}.jpg"
+            temp_dark = f"dark_{uuid.uuid4().hex}.jpg"
             with open(temp_dark, 'wb') as f:
                 f.write(img_data)
             await delete_msg_safe(status)
@@ -1132,6 +1406,15 @@ async def ai_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, prompt: s
     if user is None or msg is None:
         return
     # Database makes history survive restarts and sync across devices in the same Telegram chat.
+    allowed, reason = ai_usage_allowed(user.id)
+    if not allowed:
+        if reason == "slow":
+            await msg.reply_text(f"⏳ Tunggu {AI_COOLDOWN_SECONDS} detik sebelum meminta AI lagi, bro.")
+        else:
+            await msg.reply_text(f"🧯 Batas gratis AI hari ini tercapai ({AI_DAILY_LIMIT} permintaan/pengguna). Coba lagi besok; tidak ada layanan berbayar yang dipanggil.")
+        return
+    if len(prompt) > AI_MAX_PROMPT_CHARS:
+        prompt = prompt[:AI_MAX_PROMPT_CHARS]
     history = await asyncio.to_thread(load_ai_history, user.id, msg.chat_id)
     saved_memories = await asyncio.to_thread(load_user_memories, user.id, 20)
     full_prompt = build_ai_prompt(history, prompt, [row[1] for row in saved_memories])
@@ -1148,7 +1431,7 @@ async def ai_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, prompt: s
         await delete_msg_safe(status_message)
     if not answer:
         await update.effective_message.reply_text(
-            "Maaf bro, AI belum bisa menjawab sekarang. Periksa GEMINI_API_KEY dan koneksi jaringan."
+            "Maaf bro, AI belum bisa menjawab sekarang. Periksa GROQ_API_KEY, kuota gratis, model, dan koneksi jaringan."
             + (f"\nDetail: {error_hint}" if error_hint else "")
         )
         return
@@ -1159,6 +1442,26 @@ async def ai_reply(update: Update, context: ContextTypes.DEFAULT_TYPE, prompt: s
         await msg.reply_text("⚠️ Jawaban berhasil dibuat, tetapi riwayat belum tersimpan ke database.")
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🧹 Reset percakapan", callback_data="ai_reset")]])
     await send_ai_text(update.effective_message, answer, reply_markup=keyboard)
+
+
+async def ai_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        return
+    msg = update.effective_message
+    if not msg:
+        return
+    day = get_wib_now().strftime("%Y-%m-%d")
+    used = AI_DAILY_USAGE.get((update.effective_user.id, day), 0) if update.effective_user else 0
+    await msg.reply_text(
+        "🧠 NEON AI · STATUS\n"
+        f"Provider: {'Groq' if ai_is_configured() else 'belum dikonfigurasi'}\n"
+        f"Model chat: {AI_MODEL}\n"
+        f"Model vision/OCR: {AI_VISION_MODEL}\n"
+        f"Batas lokal: {AI_DAILY_LIMIT} permintaan/pengguna/hari\n"
+        f"Pemakaian sesi hari ini: {used}/{AI_DAILY_LIMIT}\n"
+        f"Mode biaya: hanya provider tunggal; tidak ada fallback provider berbayar.\n"
+        "Catatan: kuota gratis tetap ditentukan oleh provider."
+    )
 
 
 async def ai_chat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1214,7 +1517,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🤖 Bot: <code>@{html.escape(bot_info.username or 'unknown')}</code>\n"
             f"🧩 Build: <code>{html.escape(BOT_VERSION)}</code>\n"
             f"⏱️ Uptime: <code>{html.escape(get_uptime())}</code>\n"
-            f"🧠 Gemini: {'🟢 siap' if ai_client else '🟠 belum dikonfigurasi'}\n"
+            f"🧠 Groq AI: {'🟢 siap' if ai_is_configured() else '🟠 belum dikonfigurasi'}\n"
             f"☁️ FTP config: {'🟢 ' + str(sum(1 for a in FTP_ACCOUNTS if a.get('configured'))) + ' akun terkonfigurasi' if ftp_ready else '🟠 belum lengkap'}\n"
             f"💾 AI database: {'🟢 siap' if db_ok else '🟠 belum dibuat/akses terbatas'}\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
@@ -1223,6 +1526,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💽 Disk: <code>{disk.percent:.1f}%</code> ({format_size(disk.free)} free)\n"
             f"🐍 Python: <code>{html.escape(pyver)}</code>\n"
             f"🕒 WIB: <code>{get_wib_now().strftime('%Y-%m-%d %H:%M:%S')}</code>\n\n"
+            "📱 Perangkat/IP/baterai: <code>/deviceinfo</code> · baterai saja: <code>/battery</code>\n\n"
             "ℹ️ Gunakan /ftpstatus untuk mengetes login live setiap akun FTP."
         )
         keyboard = InlineKeyboardMarkup([
@@ -1256,8 +1560,64 @@ async def ftp_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"   User: <code>{html.escape(_mask_ftp_user(item.get('user','')))}</code>\n"
             f"   Hasil: {html.escape(item['detail'])}"
         )
-    lines.extend(["━━━━━━━━━━━━━━━━━━━━", "ℹ️ ONLINE = berhasil login saat dites; izin upload bisa berbeda. Upload media akan mencoba akun berikutnya jika akun sebelumnya gagal."])
+    lines.extend(["━━━━━━━━━━━━━━━━━━━━", "ℹ️ ONLINE = login berhasil, belum tentu bisa menulis. Jalankan /ftptest untuk mengetes upload + hapus file sementara. Upload media mencoba akun berikutnya jika akun sebelumnya gagal."])
     await msg.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+def ftp_write_test_account(account):
+    """Verify actual FTP write/read-size/delete access using a disposable probe file."""
+    ftp = None
+    probe_name = f".neon_ftp_probe_{os.getpid()}_{int(time.time() * 1000)}.tmp"
+    try:
+        ftp = _connect_ftp_account(account, timeout=12)
+        remote_dir = _enter_remote_download_dir(ftp, REMOTE_DOWNLOAD_DIR)
+        payload = ("NEON-FTP-WRITE-TEST\n" + str(time.time())).encode("utf-8")
+        with io.BytesIO(payload) as source:
+            ftp.storbinary(f"STOR {probe_name}", source, blocksize=4096)
+        try:
+            remote_size = ftp.size(probe_name)
+            if remote_size is not None and int(remote_size) != len(payload):
+                raise IOError("ukuran file tes di server tidak cocok")
+        except error_perm:
+            # Some shared FTP hosts disable SIZE; successful STOR still tests write access.
+            pass
+        ftp.delete(probe_name)
+        probe_name = None
+        return {"id": account["id"], "ok": True, "path": remote_dir, "detail": "upload probe + hapus probe berhasil"}
+    except Exception as exc:
+        return {"id": account["id"], "ok": False, "path": "", "detail": type(exc).__name__ + (": " + str(exc)[:160] if str(exc) else "")}
+    finally:
+        if ftp is not None and probe_name:
+            try:
+                ftp.delete(probe_name)
+            except Exception:
+                pass
+        _close_ftp(ftp)
+
+
+async def ftp_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner-only write test: creates then removes a tiny temporary file in FTP downloads."""
+    if not is_owner(update):
+        return
+    msg = update.effective_message
+    if msg is None:
+        return
+    await msg.reply_text("🧪 Mengetes LOGIN + izin tulis FTP. Bot membuat file tes kecil lalu langsung menghapusnya…")
+    accounts = [a for a in FTP_ACCOUNTS if a.get("configured")]
+    if not accounts:
+        await msg.reply_text("🔴 Tidak ada akun FTP lengkap. Periksa FTP_HOST/FTP_USER/FTP_PASS atau slot FTP2–FTP10.")
+        return
+    results = await asyncio.gather(*(asyncio.to_thread(ftp_write_test_account, account) for account in accounts))
+    lines = ["☁️ <b>NEON • FTP WRITE TEST</b>", "━━━━━━━━━━━━━━━━━━━━"]
+    good = 0
+    for item in results:
+        good += int(item["ok"])
+        icon = "🟢" if item["ok"] else "🔴"
+        lines.append(f"{icon} <b>FTP {item['id']}</b> — {'WRITE OK' if item['ok'] else 'WRITE GAGAL'}\n   Path: <code>{html.escape(item['path'] or REMOTE_DOWNLOAD_DIR)}</code>\n   Hasil: {html.escape(item['detail'])}")
+        with FTP_ACCOUNT_LOCK:
+            FTP_ACCOUNT_STATUS[item["id"]] = {"state": "online" if item["ok"] else "error", "ok": bool(item["ok"]), "checked": get_wib_now(), "detail": item["detail"]}
+    lines.extend(["━━━━━━━━━━━━━━━━━━━━", f"Hasil: <b>{good}/{len(results)}</b> akun bisa menulis dan menghapus file tes.", "File tes sementara dihapus setelah pemeriksaan. Jika LOGIN OK tetapi WRITE GAGAL, cek path webroot dan izin FTP."])
+    await msg.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
 async def downloader_check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1404,7 +1764,7 @@ async def secret_exec_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     # Remote shell execution is disabled by default for safer Replit deployments.
     # The command remains available to the owner only when explicitly enabled.
-    if os.getenv("ENABLE_SECRET_EXEC", "0").strip().lower() not in ("1", "true", "yes", "on"):
+    if get_config("ENABLE_SECRET_EXEC", "0").strip().lower() not in ("1", "true", "yes", "on"):
         if update.effective_message:
             await update.effective_message.reply_text(
                 "🔒 /secret_exec dinonaktifkan secara default demi keamanan. Aktifkan ENABLE_SECRET_EXEC=1 di Secrets hanya jika benar-benar diperlukan."
@@ -1441,31 +1801,45 @@ async def rename_ftp_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update):
         return
     if len(context.args) < 2:
-        await update.message.reply_text("✏️ Format: <code>/rename [lama] [baru]</code>", parse_mode='HTML')
+        await update.effective_message.reply_text("✏️ Format: <code>/rename [nama_lama] [nama_baru]</code>", parse_mode="HTML")
         return
-    old_name, new_name = context.args[0], context.args[1]
+    old_name, requested_new = context.args[0], context.args[1]
+    old_name = os.path.basename(old_name.replace("\\", "/"))
+    new_name = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(requested_new.replace("\\", "/"))).strip("._")
+    if not old_name or not new_name or old_name in (".", "..") or new_name in (".", "..") or any(c in old_name + new_name for c in "\r\n"):
+        await update.effective_message.reply_text("❌ Nama file tidak valid.")
+        return
+    ftp = None
     try:
         async with ftp_lock:
             ftp = FTPManager.get_connection()
+            webroot = _enter_remote_download_dir(ftp, "htdocs")
             found_folder = None
             for fld in ["Gambar", "Video", "Audio", "Dokumen", "Arsip_Zip", "Lainnya", "downloads"]:
                 try:
-                    ftp.cwd(f'/htdocs/{fld}')
+                    ftp.cwd(webroot)
+                    ftp.cwd(fld)
                     if old_name in ftp.nlst():
                         found_folder = fld
                         break
                 except Exception:
-                    pass
+                    continue
             if not found_folder:
-                await update.message.reply_text("❌ File tidak ditemukan di FTP.", parse_mode='HTML')
-                ftp.quit()
-                return
-            ftp.cwd(f'/htdocs/{found_folder}')
+                raise FileNotFoundError("File tidak ditemukan di folder FTP yang dikenal.")
+            ftp.cwd(webroot)
+            ftp.cwd(found_folder)
+            if new_name in ftp.nlst():
+                raise FileExistsError("Nama tujuan sudah dipakai; pilih nama file lain.")
             ftp.rename(old_name, new_name)
-            ftp.quit()
-        await update.message.reply_text(f"✅ Rename <code>{old_name}</code> -> <code>{new_name}</code>", parse_mode='HTML')
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}", parse_mode='HTML')
+        await update.effective_message.reply_text(
+            f"✅ Rename terverifikasi\n📁 <code>htdocs/{html.escape(found_folder)}/{html.escape(new_name)}</code>",
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        await update.effective_message.reply_text("❌ Rename gagal: " + html.escape(str(exc)[:500]), parse_mode="HTML")
+    finally:
+        if ftp is not None:
+            _close_ftp(ftp)
 
 async def ban_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update):
@@ -1495,6 +1869,88 @@ async def unban_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"✅ User ID {uid} di-unban.", parse_mode='HTML')
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}", parse_mode='HTML')
+
+async def device_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Report Android/Termux network addresses and battery without exposing secrets."""
+    if not is_authorized(update):
+        return
+    msg = update.effective_message
+    if msg is None:
+        return
+    lines = ["📱 <b>NEON OS • ANDROID / TERMUX DEVICE</b>", "━━━━━━━━━━━━━━━━━━━━"]
+    prefix = get_config("PREFIX", "")
+    is_termux = "com.termux" in prefix or bool(shutil.which("termux-info"))
+    lines.append(f"🧩 Runtime: <b>{'Termux/Android' if is_termux else 'Linux/Server'}</b>")
+    lines.append(f"🐍 Python: <code>{html.escape(sys.version.split()[0])}</code>")
+
+    # Collect usable private/local IPv4 addresses; ignore loopback and link-local addresses.
+    local_ips = set()
+    try:
+        for addresses in psutil.net_if_addrs().values():
+            for addr in addresses:
+                if addr.family == socket.AF_INET and addr.address and not addr.address.startswith(("127.", "169.254.")):
+                    local_ips.add(addr.address)
+    except Exception as exc:
+        logger.debug("Local IP discovery failed (%s)", type(exc).__name__)
+    if not local_ips:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(1.5)
+                sock.connect(("1.1.1.1", 80))
+                ip = sock.getsockname()[0]
+                if ip and not ip.startswith("127."):
+                    local_ips.add(ip)
+        except Exception:
+            pass
+    lines.append("🌐 IP lokal: <code>" + html.escape(", ".join(sorted(local_ips)) if local_ips else "tidak terdeteksi") + "</code>")
+
+    # Public IP is optional and only queried on explicit /deviceinfo; never log secrets.
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(4.0, connect=2.0), follow_redirects=True) as client:
+            response = await client.get("https://api.ipify.org", headers={"Accept": "text/plain"})
+            response.raise_for_status()
+            public_ip = response.text.strip()
+            import ipaddress
+            ipaddress.ip_address(public_ip)
+            lines.append(f"🌍 IP publik: <code>{html.escape(public_ip)}</code>")
+    except Exception as exc:
+        logger.info("Public IP lookup unavailable (%s)", type(exc).__name__)
+        lines.append("🌍 IP publik: <i>tidak dapat diperiksa (internet/API mungkin diblokir)</i>")
+
+    # Prefer Termux:API on Android; psutil fallback works on some hosts only.
+    battery_found = False
+    battery_cmd = shutil.which("termux-battery-status")
+    if battery_cmd:
+        try:
+            proc = await asyncio.create_subprocess_exec(battery_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=6)
+            if proc.returncode == 0 and stdout:
+                data = json.loads(stdout.decode("utf-8", errors="replace"))
+                pct = data.get("percentage")
+                if isinstance(pct, (int, float)):
+                    pct = max(0, min(100, int(pct)))
+                    lines.append(f"🔋 Baterai: <b>{pct}%</b>")
+                    lines.append(f"🔌 Daya: <b>{html.escape(str(data.get('plugged', 'tidak diketahui')))}</b>")
+                    if isinstance(data.get("temperature"), (int, float)):
+                        lines.append(f"🌡️ Suhu baterai: <b>{data['temperature']}°C</b>")
+                    battery_found = True
+        except Exception as exc:
+            logger.debug("Termux battery read failed (%s)", type(exc).__name__)
+    if not battery_found:
+        try:
+            battery = psutil.sensors_battery()
+            if battery is not None:
+                lines.append(f"🔋 Baterai: <b>{int(battery.percent)}%</b>")
+                lines.append(f"🔌 Charger: <b>{'terpasang' if battery.power_plugged else 'tidak terpasang'}</b>")
+                battery_found = True
+        except Exception:
+            pass
+    if not battery_found:
+        lines.append("🔋 Baterai: <i>tidak tersedia. Di Android, pasang Termux:API + pkg install termux-api</i>")
+
+    lines.extend(["━━━━━━━━━━━━━━━━━━━━", "ℹ️ IP lokal berbeda dari IP publik. VPN/proxy dapat mengubah IP publik yang terlihat."])
+    await msg.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
 
 async def battery_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
@@ -1541,7 +1997,7 @@ async def battery_status_command(update: Update, context: ContextTypes.DEFAULT_T
             logger.debug("psutil battery sensor unavailable: %s", type(exc).__name__)
 
     if not detected:
-        if sys.platform.startswith("linux") and "com.termux" in os.getenv("PREFIX", ""):
+        if sys.platform.startswith("linux") and "com.termux" in get_config("PREFIX", ""):
             lines.extend([
                 "❌ Data baterai Android belum bisa dibaca.",
                 "Pasang aplikasi <b>Termux:API</b> yang cocok dengan versi Termux, lalu jalankan:",
@@ -1659,9 +2115,9 @@ async def kanban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = load_kanban()
     txt = (
         "📊 <b>KANBAN BOARD</b>\n"
-        "📌 <b>TODO:</b>\n" + ("\n".join([f"• {x}" for x in kb['todo']]) if kb['todo'] else "Kosong") + "\n\n"
-        "⚡ <b>DOING:</b>\n" + ("\n".join([f"• {x}" for x in kb['doing']]) if kb['doing'] else "Kosong") + "\n\n"
-        "✅ <b>DONE:</b>\n" + ("\n".join([f"• {x}" for x in kb['done']]) if kb['done'] else "Kosong")
+        "📌 <b>TODO:</b>\n" + ("\n".join([f"• {html.escape(str(x))}" for x in kb['todo']]) if kb['todo'] else "Kosong") + "\n\n"
+        "⚡ <b>DOING:</b>\n" + ("\n".join([f"• {html.escape(str(x))}" for x in kb['doing']]) if kb['doing'] else "Kosong") + "\n\n"
+        "✅ <b>DONE:</b>\n" + ("\n".join([f"• {html.escape(str(x))}" for x in kb['done']]) if kb['done'] else "Kosong")
     )
     await update.message.reply_text(txt, parse_mode='HTML')
 
@@ -1675,27 +2131,95 @@ async def kanban_add_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(f"✅ Added to Kanban: <b>{t}</b>", parse_mode='HTML')
 
 async def merge_pdf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Merge the last PDFs sent to this bot by the current user in this chat."""
     if not is_authorized(update):
         return
-    await update.message.reply_text("📄 Balas PDF dengan <code>/mergepdf</code>.", parse_mode='HTML')
+    msg = update.effective_message
+    if msg is None or update.effective_user is None:
+        return
+    queue = context.user_data.setdefault("neon_pdf_merge_queue", [])
+    queue[:] = [item for item in queue if item.get("chat_id") == msg.chat_id]
+    if len(queue) < 2:
+        await msg.reply_text(
+            "📄 <b>PDF MERGE</b>\nKirim minimal 2 file PDF ke bot satu per satu, tunggu konfirmasi upload, lalu jalankan <code>/mergepdf</code>.\n"
+            "Antrean dibatasi 10 PDF per chat dan hanya berlaku di sesi bot ini.", parse_mode="HTML"
+        )
+        return
+    try:
+        from pypdf import PdfWriter
+    except ImportError:
+        await msg.reply_text("🧩 Modul PDF belum terpasang. Jalankan <code>python -m pip install pypdf</code> lalu restart bot.", parse_mode="HTML")
+        return
+    work = tempfile.mkdtemp(prefix="neon_mergepdf_", dir=PROJECT_DIR)
+    status = await msg.reply_text(f"📚 Menggabungkan {len(queue)} PDF…")
+    output = os.path.join(work, "NEON_MERGED.pdf")
+    try:
+        writer = PdfWriter()
+        downloaded = 0
+        for index, item in enumerate(queue, start=1):
+            tg_file = await context.bot.get_file(item["file_id"])
+            path = os.path.join(work, f"input_{index:02d}.pdf")
+            await tg_file.download_to_drive(custom_path=path)
+            if not os.path.isfile(path) or os.path.getsize(path) == 0:
+                raise RuntimeError(f"PDF ke-{index} kosong atau gagal diunduh.")
+            writer.append(path)
+            downloaded += 1
+        with open(output, "wb") as target:
+            writer.write(target)
+        writer.close()
+        if not os.path.isfile(output) or os.path.getsize(output) == 0:
+            raise RuntimeError("Hasil PDF tidak terbentuk.")
+        with open(output, "rb") as document:
+            await context.bot.send_document(chat_id=msg.chat_id, document=document, filename="NEON_MERGED.pdf",
+                                            caption=f"✅ {downloaded} PDF berhasil digabungkan.")
+        queue.clear()
+        await delete_msg_safe(status)
+    except Exception as exc:
+        logger.exception("PDF merge gagal")
+        await status.edit_text("❌ PDF merge gagal: " + html.escape(str(exc)[:700]), parse_mode="HTML")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 async def password_generator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         return
-    l = int(context.args[0]) if context.args and context.args[0].isdigit() else 12
-    pwd = "".join(random.choice(string.ascii_letters + string.digits + '!@#$%') for _ in range(l))
+    try:
+        requested_length = int(context.args[0]) if context.args else 16
+    except (TypeError, ValueError):
+        requested_length = 16
+    l = max(8, min(128, requested_length))
+    pwd = "".join(secrets.choice(string.ascii_letters + string.digits + '!@#$%') for _ in range(l))
     await update.message.reply_text(f"🔑 Password: <code>{pwd}</code>", parse_mode='HTML')
 
 async def math_calculator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update) or not context.args:
         return
-    expr = " ".join(context.args)
-    if not re.match(r'^[0-9+\-*/().\s]+$', expr):
+    expr = " ".join(context.args).strip()
+    if len(expr) > 120 or not re.fullmatch(r"[0-9+\-*/().%\s]+", expr):
+        await update.effective_message.reply_text("❌ Ekspresi tidak valid atau terlalu panjang. Operator yang didukung: + - * / % dan kurung.")
         return
+    import ast as _ast
+    import operator as _op
+    ops = {_ast.Add: _op.add, _ast.Sub: _op.sub, _ast.Mult: _op.mul, _ast.Div: _op.truediv, _ast.Mod: _op.mod, _ast.UAdd: _op.pos, _ast.USub: _op.neg}
+    def calc(node):
+        if isinstance(node, _ast.Expression): return calc(node.body)
+        if isinstance(node, _ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+            if abs(node.value) > 10**15: raise ValueError("angka terlalu besar")
+            return node.value
+        if isinstance(node, _ast.BinOp) and type(node.op) in ops:
+            left, right = calc(node.left), calc(node.right)
+            if abs(right) > 10**9: raise ValueError("operand terlalu besar")
+            result = ops[type(node.op)](left, right)
+            if abs(result) > 10**15: raise ValueError("hasil terlalu besar")
+            return result
+        if isinstance(node, _ast.UnaryOp) and type(node.op) in ops:
+            return ops[type(node.op)](calc(node.operand))
+        raise ValueError("operator tidak didukung")
     try:
-        await update.message.reply_text(f"🧮 Hasil: <b>{eval(expr)}</b>", parse_mode='HTML')
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}", parse_mode='HTML')
+        result = calc(_ast.parse(expr, mode="eval"))
+        await update.effective_message.reply_text(f"🧮 Hasil: <b>{html.escape(str(result))}</b>", parse_mode="HTML")
+    except Exception as exc:
+        await update.effective_message.reply_text("❌ Perhitungan gagal: " + html.escape(str(exc)[:180]), parse_mode="HTML")
 
 async def ai_ocr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update) or not update.message.reply_to_message or not update.message.reply_to_message.photo:
@@ -1703,10 +2227,11 @@ async def ai_ocr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     st = await update.message.reply_text("🔍 <i>Scanning...</i>", parse_mode='HTML')
     try:
         f = await context.bot.get_file(update.message.reply_to_message.photo[-1].file_id)
-        tp = f"ocr_{int(time.time())}.jpg"
+        tp = f"ocr_{uuid.uuid4().hex}.jpg"
         await f.download_to_drive(custom_path=tp)
-        uf = ai_client.files.upload(file=tp)
-        res = generate_ai_response([uf, "Extract text"]) or "Tidak ada teks."
+        with open(tp, "rb") as image_file:
+            image_b64 = base64.b64encode(image_file.read()).decode("ascii")
+        res = generate_ai_response("Baca dan salin semua teks yang terlihat pada gambar. Jawab dalam bahasa Indonesia.", model=AI_VISION_MODEL, image_data_url=f"data:image/jpeg;base64,{image_b64}") or "Tidak ada teks atau model vision tidak tersedia."
         await delete_msg_safe(st)
         await update.message.reply_text(f"🔍 <b>OCR:</b>\n<code>{html.escape(res)}</code>", parse_mode='HTML')
     except Exception as e:
@@ -1722,7 +2247,7 @@ async def ai_image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     st = await update.message.reply_text("🎨 <i>Rendering...</i>", parse_mode='HTML')
     try:
         data = urllib.request.urlopen(urllib.request.Request(f"https://image.pollinations.ai/prompt/{urllib.parse.quote(p)}?width=1024&height=1024&nologo=true", headers={'User-Agent': 'Mozilla/5.0'}), timeout=30).read()
-        tp = f"ai_{int(time.time())}.jpg"
+        tp = f"ai_{uuid.uuid4().hex}.jpg"
         with open(tp, 'wb') as f:
             f.write(data)
         await delete_msg_safe(st)
@@ -1739,7 +2264,7 @@ async def ai_tts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     try:
         data = urllib.request.urlopen(urllib.request.Request(f"https://translate.google.com/translate_tts?ie=UTF-8&q={urllib.parse.quote(' '.join(context.args)[:200])}&tl=id&client=tw-ob", headers={'User-Agent': 'Mozilla/5.0'}), timeout=15).read()
-        tp = f"tts_{int(time.time())}.mp3"
+        tp = f"tts_{uuid.uuid4().hex}.mp3"
         with open(tp, 'wb') as f:
             f.write(data)
         with open(tp, 'rb') as af:
@@ -1764,7 +2289,7 @@ async def qr_code_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     d = " ".join(context.args)
     try:
         data = urllib.request.urlopen(f"https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={urllib.parse.quote(d)}", timeout=15).read()
-        tp = f"qr_{int(time.time())}.png"
+        tp = f"qr_{uuid.uuid4().hex}.png"
         with open(tp, 'wb') as f:
             f.write(data)
         with open(tp, 'rb') as qf:
@@ -1804,7 +2329,7 @@ async def todo_list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         return
     todos = load_todos()
-    await update.message.reply_text("📋 <b>TO-DO:</b>\n" + ("\n".join([f"{i+1}. {x['task']}" for i, x in enumerate(todos)]) if todos else "Kosong"), parse_mode='HTML')
+    await update.message.reply_text("📋 <b>TO-DO:</b>\n" + ("\n".join([f"{i+1}. {html.escape(str(x.get('task', '')))}" for i, x in enumerate(todos) if isinstance(x, dict)]) if todos else "Kosong"), parse_mode='HTML')
 
 async def todo_add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update) or not context.args:
@@ -1996,7 +2521,7 @@ async def universal_downloader(update: Update, context: ContextTypes.DEFAULT_TYP
         args.append(candidate)
         return args
 
-    work_dir = os.path.abspath(f"download_{int(time.time())}_{update.effective_user.id}")
+    work_dir = tempfile.mkdtemp(prefix=f"neon_dl_{getattr(update.effective_user, 'id', 'user')}_", dir=DOWNLOADS_DIR)
 
     tiktok_photo_diagnostics = []
 
@@ -2396,20 +2921,9 @@ async def universal_downloader(update: Update, context: ContextTypes.DEFAULT_TYP
             await status.edit_text("❌ Download gagal.\n\n" + html.escape(detail[-3500:]))
             return
 
-        # Preserve every completed download in a permanent local vault before sending.
-        # A unique name avoids overwriting another user's file or a prior download.
-        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-        preserved = []
-        for source_path in downloaded:
-            base = os.path.basename(source_path) or f"media_{int(time.time())}.bin"
-            stem, ext = os.path.splitext(base)
-            target_path = os.path.join(DOWNLOADS_DIR, base)
-            if os.path.exists(target_path):
-                target_path = os.path.join(DOWNLOADS_DIR, f"{stem}_{int(time.time() * 1000)}{ext}")
-            shutil.copy2(source_path, target_path)
-            preserved.append(target_path)
-        downloaded = preserved
-        logger.info("Vault: preserved %s downloaded file(s) in %s", len(downloaded), DOWNLOADS_DIR)
+        # Keep media only in this job's temporary work_dir. The durable destination
+        # is the hosting FTP webroot htdocs/downloads, not a local Termux archive.
+        logger.info("Download selesai: %s file sementara; target permanen = FTP htdocs/downloads.", len(downloaded))
 
         # Send images in albums (up to 10 per Telegram media group), other media individually.
         images = [p for p in downloaded if is_image_file(p)]
@@ -2430,7 +2944,13 @@ async def universal_downloader(update: Update, context: ContextTypes.DEFAULT_TYP
                 ftp_saved.append(info)
             except Exception as ftp_exc:
                 logger.exception("Auto-save download to FTP failed for %s", os.path.basename(media_path))
-                ftp_failed.append(f"{os.path.basename(media_path)}: {str(ftp_exc)[:180]}")
+                queued = None
+                try:
+                    queued = queue_failed_ftp_upload(media_path, getattr(update.effective_user, "id", None), ftp_exc)
+                except Exception:
+                    logger.exception("Gagal menyimpan file ke emergency FTP outbox")
+                note = "file diamankan di antrean lokal sementara; jalankan /ftpretry" if queued else "gagal mengamankan file lokal"
+                ftp_failed.append(f"{os.path.basename(media_path)}: {str(ftp_exc)[:130]} ({note})")
 
         if images:
             usable_images = []
@@ -2518,8 +3038,7 @@ async def mp3_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         await update.effective_message.reply_text("❌ URL tidak valid. Gunakan link http:// atau https:// yang lengkap.")
         return
-    work_dir = os.path.abspath(f"download_mp3_{int(time.time() * 1000)}_{update.effective_user.id}")
-    os.makedirs(work_dir, exist_ok=True)
+    work_dir = tempfile.mkdtemp(prefix=f"neon_mp3_{getattr(update.effective_user, 'id', 'user')}_", dir=DOWNLOADS_DIR)
     st = await update.effective_message.reply_text("🎵 Mengunduh dan mengonversi audio...")
     try:
         mp3_args = [
@@ -2560,18 +3079,8 @@ async def mp3_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE):
                        for name in names if name.lower().endswith(".mp3") and os.path.getsize(os.path.join(root, name)) > 0]
         if not audio_files:
             raise RuntimeError("File MP3 tidak ditemukan. Pastikan ffmpeg terpasang: pkg install ffmpeg")
-        # Keep generated MP3 files permanently; scratch copies are still temporary.
-        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-        preserved_audio = []
-        for source_path in audio_files:
-            base = os.path.basename(source_path)
-            stem, ext = os.path.splitext(base)
-            target_path = os.path.join(DOWNLOADS_DIR, base)
-            if os.path.exists(target_path):
-                target_path = os.path.join(DOWNLOADS_DIR, f"{stem}_{int(time.time() * 1000)}{ext}")
-            shutil.copy2(source_path, target_path)
-            preserved_audio.append(target_path)
-        audio_files = preserved_audio
+        # MP3 stays in the job's temporary directory; the durable copy is uploaded
+        # to hosting FTP htdocs/downloads and the job folder is cleaned afterward.
         ftp_audio_saved = []
         ftp_audio_errors = []
         for audio_path in audio_files:
@@ -2582,7 +3091,12 @@ async def mp3_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ))
             except Exception as ftp_exc:
                 logger.exception("Auto-save MP3 to FTP failed: %s", audio_path)
-                ftp_audio_errors.append(str(ftp_exc)[:160])
+                queued = None
+                try:
+                    queued = queue_failed_ftp_upload(audio_path, getattr(update.effective_user, "id", None), ftp_exc)
+                except Exception:
+                    logger.exception("Gagal menyimpan MP3 ke emergency FTP outbox")
+                ftp_audio_errors.append(str(ftp_exc)[:120] + ("; diamankan di antrean lokal, jalankan /ftpretry" if queued else "; antrean lokal juga gagal"))
             with open(audio_path, "rb") as audio_file:
                 await context.bot.send_audio(chat_id=update.effective_chat.id, audio=audio_file,
                                              title=os.path.splitext(os.path.basename(audio_path))[0][:64])
@@ -2718,6 +3232,92 @@ async def cookie_status_command(update: Update, context: ContextTypes.DEFAULT_TY
             lines += ["File: 🔴 gagal diperiksa", f"Error: {html.escape(type(exc).__name__)}"]
     lines += ["━━━━━━━━━━━━━━━━━━━━", "Tes extractor dengan <code>/igcheck https://www.instagram.com/reel/ID/</code>", "Bantuan: <code>/ighelp</code>"]
     await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def diag_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner/admin diagnostic report; never prints credentials, cookie values or tokens."""
+    if not is_authorized(update):
+        return
+    import importlib.util
+    from importlib import metadata
+    msg = update.effective_message
+    if msg is None:
+        return
+    def package_status(module, dist):
+        try:
+            if importlib.util.find_spec(module) is None:
+                return "🔴 missing"
+            try:
+                return "🟢 " + metadata.version(dist)
+            except metadata.PackageNotFoundError:
+                return "🟢 available"
+        except Exception:
+            return "🟡 unknown"
+    def file_status(path):
+        if not path:
+            return "⚪ not configured"
+        if not os.path.isfile(path):
+            return "🔴 missing"
+        if not os.access(path, os.R_OK):
+            return "🔴 unreadable"
+        return "🟢 readable"
+    try:
+        os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+        probe = os.path.join(DOWNLOADS_DIR, ".neon_write_test")
+        with open(probe, "w", encoding="utf-8") as fp:
+            fp.write("ok")
+        os.remove(probe)
+        storage = "🟢 writable"
+    except Exception as exc:
+        storage = "🔴 " + type(exc).__name__
+    configured_ftp = sum(1 for a in FTP_ACCOUNTS if a.get("configured"))
+    active_ftp = sum(1 for a in FTP_ACCOUNTS if FTP_ACCOUNT_STATUS.get(a.get("id"), {}).get("ok"))
+    cookie = INSTAGRAM_COOKIES_FILE or SOCIAL_COOKIES_FILE
+    owner = "🟢 set" if OWNER_ID else "🔴 not set"
+    lines = [
+        "<b>🧪 NEON OS • DEEP DIAGNOSTICS</b>",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"🏷️ Build: <code>{html.escape(BOT_VERSION)}</code>",
+        f"🐍 Python: <code>{html.escape(sys.version.split()[0])}</code>",
+        f"📁 Project: <code>{html.escape(PROJECT_DIR)}</code>",
+        f"💾 Archive: {storage}",
+        f"📂 Download path: <code>{html.escape(DOWNLOADS_DIR)}</code>",
+        f"🔐 Owner ID: {owner}",
+        f"🤖 Unique configured bot tokens: <code>{len(set(BOT_TOKENS))}</code> (values hidden)",
+        f"☁️ FTP configured: <code>{configured_ftp}/10</code> · last checks OK: <code>{active_ftp}</code>",
+        f"🧠 Groq AI: {'🟢 configured' if ai_is_configured() else '🟡 not configured'}",
+        f"🍪 Instagram cookies: {file_status(cookie)} (session validity not verified)",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"📦 yt-dlp: {package_status('yt_dlp','yt-dlp')}",
+        f"📦 gallery-dl: {package_status('gallery_dl','gallery-dl')}",
+        f"📦 curl-cffi: {package_status('curl_cffi','curl-cffi')}",
+        f"📦 ffmpeg: {'🟢 installed' if shutil.which('ffmpeg') else '🟡 not found'}",
+        f"📦 certifi: {package_status('certifi','certifi')}",
+        f"⏱️ Uptime: <code>{html.escape(str(get_uptime()))}</code>",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "Penting: diagnostic lokal tidak menjamin Instagram/TikTok mengizinkan akses. Jika Instagram gagal, cek cookie session, privasi postingan, dan update yt-dlp.",
+        "Tes spesifik: <code>/igcheck URL</code> · <code>/dlcheck</code> · <code>/ftpstatus</code> · <code>/ftptest</code> · <code>/ftpretry</code>"
+    ]
+    await msg.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Quick bot responsiveness check."""
+    if not is_authorized(update):
+        return
+    started = time.perf_counter()
+    msg = update.effective_message
+    if msg is None:
+        return
+    sent = await msg.reply_text("⚡ <b>NEON PING</b> · menghitung respons…", parse_mode="HTML")
+    elapsed = (time.perf_counter() - started) * 1000
+    await sent.edit_text(
+        "⚡ <b>NEON PING</b>\n"
+        f"🟢 Bot handler: <code>{elapsed:.0f} ms</code>\n"
+        f"🕒 WIB: <code>{get_wib_now().strftime('%H:%M:%S')}</code>\n"
+        "ℹ️ Ini mengukur waktu respons handler, bukan ping jaringan ke Telegram.",
+        parse_mode="HTML"
+    )
 
 
 async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2887,11 +3487,13 @@ async def cloud_tree(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         async with ftp_lock:
             ftp = FTPManager.get_connection()
+            webroot = _enter_remote_download_dir(ftp, "htdocs")
             tree = "<b>🌴 CLOUD TREE:</b>\n"
             for fld in ["Gambar", "Video", "Audio", "Dokumen", "Arsip_Zip", "Lainnya", "downloads"]:
                 tree += f"📁 {fld}\n"
                 try:
-                    ftp.cwd(f'/htdocs/{fld}')
+                    ftp.cwd(webroot)
+                    ftp.cwd(fld)
                     for file in ftp.nlst()[:3]:
                         if file not in ['.', '..']:
                             tree += f"   └── <code>{file}</code>\n"
@@ -2919,14 +3521,10 @@ async def backup_cloud(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with zipfile.ZipFile(bzip, 'w', zipfile.ZIP_DEFLATED) as zipf:
             async with ftp_lock:
                 ftp = FTPManager.get_connection()
+                webroot = _enter_remote_download_dir(ftp, "htdocs")
                 for folder in folders:
                     try:
-                        # FTPManager normally starts in htdocs; handle both jailed and root layouts.
-                        try:
-                            ftp.cwd('/')
-                            ftp.cwd('htdocs')
-                        except Exception:
-                            pass
+                        ftp.cwd(webroot)
                         ftp.cwd(folder)
                         names = [n for n in ftp.nlst() if n not in ('.', '..') and '/' not in n and '\\' not in n]
                     except Exception as exc:
@@ -2936,12 +3534,16 @@ async def backup_cloud(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         try:
                             # FTP SIZE is disabled on some hosts. RETR is the authoritative
                             # check; directories/non-readable entries fail here and are reported.
-                            data = io.BytesIO()
-                            ftp.retrbinary(f"RETR {name}", data.write)
-                            if data.tell() == 0:
+                            byte_count = 0
+                            with zipf.open(f"{folder}/{name}", "w") as target:
+                                def write_chunk(chunk):
+                                    nonlocal byte_count
+                                    target.write(chunk)
+                                    byte_count += len(chunk)
+                                ftp.retrbinary(f"RETR {name}", write_chunk, blocksize=256 * 1024)
+                            if byte_count == 0:
                                 skipped.append(f"{folder}/{name}: file kosong atau tidak dapat dibaca")
                                 continue
-                            zipf.writestr(f"{folder}/{name}", data.getvalue())
                             archived += 1
                         except Exception as exc:
                             skipped.append(f"{folder}/{name}: {exc}")
@@ -2999,13 +3601,10 @@ async def storage_quota(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total = 0
         async with ftp_lock:
             ftp = FTPManager.get_connection()
+            webroot = _enter_remote_download_dir(ftp, "htdocs")
             for folder in ["Gambar", "Video", "Audio", "Dokumen", "Arsip_Zip", "Lainnya", "downloads"]:
                 try:
-                    try:
-                        ftp.cwd('/')
-                        ftp.cwd('htdocs')
-                    except Exception:
-                        pass
+                    ftp.cwd(webroot)
                     ftp.cwd(folder)
                     used_mlsd = False
                     try:
@@ -3050,11 +3649,8 @@ async def list_ftp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         async with ftp_lock:
             ftp = FTPManager.get_connection()
-            try:
-                ftp.cwd('/')
-                ftp.cwd('htdocs')
-            except Exception:
-                pass
+            webroot = _enter_remote_download_dir(ftp, "htdocs")
+            ftp.cwd(webroot)
             items = [item for item in ftp.nlst() if item not in ('.', '..')]
             try:
                 ftp.quit()
@@ -3082,9 +3678,11 @@ async def search_ftp(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = []
         async with ftp_lock:
             ftp = FTPManager.get_connection()
+            webroot = _enter_remote_download_dir(ftp, "htdocs")
             for fld in ["Gambar", "Video", "Audio", "Dokumen", "Arsip_Zip", "Lainnya", "downloads"]:
                 try:
-                    ftp.cwd(f'/htdocs/{fld}')
+                    ftp.cwd(webroot)
+                    ftp.cwd(fld)
                     for f in ftp.nlst():
                         if q in f.lower() and f not in ['.', '..']:
                             res.append(f"📁 htdocs/{fld}/ -> <b>{f}</b>")
@@ -3103,27 +3701,45 @@ async def sync_url_ftp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.effective_message.reply_text("🔄 Format: <code>/sync https://example.com/file.jpg</code>", parse_mode="HTML")
         return
-    url = context.args[0]
-    fname = os.path.basename(url.split("?")[0]) or f"file_{int(time.time())}.mp4"
-    lpath = f"temp_sync_{fname}"
-    st = await update.message.reply_text("🚀 <i>Syncing...</i>", parse_mode='HTML')
+    url = context.args[0].strip()
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        await update.effective_message.reply_text("❌ URL tidak valid. Gunakan link http:// atau https:// yang lengkap.")
+        return
+    raw_name = urllib.parse.unquote(os.path.basename(parsed.path)) or f"file_{int(time.time())}.bin"
+    fname = re.sub(r"[^A-Za-z0-9._-]+", "_", raw_name).strip("._") or f"file_{uuid.uuid4().hex[:8]}.bin"
+    cat = "Video" if os.path.splitext(fname)[1].lower() in (".mp4", ".mkv", ".mov", ".webm", ".m4v") else "Gambar"
+    lpath = os.path.join(PROJECT_DIR, f"temp_sync_{uuid.uuid4().hex}_{fname[:80]}")
+    msg = update.effective_message
+    st = await msg.reply_text("🚀 Mengunduh URL secara streaming, lalu mengunggah ke hosting FTP…")
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'}), timeout=300) as resp, open(lpath, 'wb') as f:
-            f.write(resp.read())
-        cat = "Video" if fname.endswith(('.mp4','.mkv')) else "Gambar"
-        async with ftp_lock:
-            ftp = FTPManager.get_connection()
-            ensure_ftp_dir(ftp, cat)
-            with open(lpath, 'rb') as fp:
-                ftp.storbinary(f"STOR {fname}", fp, blocksize=32768)
-            ftp.quit()
-        await delete_msg_safe(st)
-        await update.message.reply_text(f"⚡ Sync OK: <code>htdocs/{cat}/{fname}</code>", parse_mode='HTML')
-    except Exception as e:
-        await delete_msg_safe(st)
-        await update.message.reply_text(f"❌ Error: {e}", parse_mode='HTML')
+        def stream_download():
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "*/*"})
+            with urllib.request.urlopen(req, timeout=60) as response, open(lpath, "wb") as output:
+                shutil.copyfileobj(response, output, length=256 * 1024)
+        await asyncio.to_thread(stream_download)
+        if not os.path.isfile(lpath) or os.path.getsize(lpath) <= 0:
+            raise RuntimeError("URL tidak menghasilkan file yang bisa disimpan.")
+        result = await asyncio.to_thread(upload_category_file_to_ftp, lpath, fname, cat)
+        await st.edit_text(
+            f"✅ Sync terverifikasi\n📁 <code>{html.escape(result['path'])}</code>\n📦 <code>{format_size(result['size'])}</code>",
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        queued = None
+        try:
+            queued = queue_failed_ftp_upload(lpath, getattr(update.effective_user, "id", None), exc) if os.path.isfile(lpath) else None
+        except Exception:
+            logger.exception("Gagal menyimpan sync ke antrean FTP")
+        suffix = " File lokal diamankan; jalankan /ftpretry setelah FTP pulih." if queued else ""
+        logger.exception("Sync URL ke FTP gagal")
+        await st.edit_text("❌ Sync gagal: " + html.escape(str(exc)[:900] + suffix), parse_mode="HTML")
     finally:
-        clean_local_temp_files()
+        try:
+            if os.path.exists(lpath): os.remove(lpath)
+        except OSError:
+            pass
+
 
 def detect_media_signature(path):
     """Return (category, extension, MIME) using file signatures, not filenames alone."""
@@ -3230,9 +3846,15 @@ async def handle_media_upload(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not fname or fname in (".", ".."):
             fname = f"media_{int(time.time())}{default_ext}"
 
+        if msg.document and (default_ext.lower() == ".pdf" or mime == "application/pdf"):
+            pdf_queue = context.user_data.setdefault("neon_pdf_merge_queue", [])
+            if not any(item.get("file_id") == media.file_id for item in pdf_queue):
+                pdf_queue.append({"file_id": media.file_id, "name": fname, "chat_id": msg.chat_id})
+                del pdf_queue[:-10]
+
         st = await msg.reply_text(f"⏳ Mengunggah media ke folder {category}...")
         tg_file = await context.bot.get_file(media.file_id)
-        lpath = f"temp_upload_{int(time.time() * 1000)}{default_ext}"
+        lpath = os.path.join(PROJECT_DIR, f"temp_upload_{uuid.uuid4().hex}{default_ext}")
         await tg_file.download_to_drive(custom_path=lpath)
         # Telegram documents may be mislabelled (e.g. JPEG named .mp4). Trust the
         # file signature over the supplied extension/MIME where a signature is known.
@@ -3249,20 +3871,21 @@ async def handle_media_upload(update: Update, context: ContextTypes.DEFAULT_TYPE
                     os.replace(lpath, new_lpath)
                     lpath = new_lpath
         try:
-            async with ftp_lock:
-                ftp = FTPManager.get_connection()
+            try:
+                result = await asyncio.to_thread(upload_category_file_to_ftp, lpath, fname, category)
+            except Exception as ftp_exc:
+                queued = None
                 try:
-                    ensure_ftp_dir(ftp, category)
-                    with open(lpath, 'rb') as fp:
-                        ftp.storbinary(f"STOR {fname}", fp, blocksize=32768)
-                finally:
-                    try: ftp.quit()
-                    except Exception: ftp.close()
+                    queued = queue_failed_ftp_upload(lpath, user.id, ftp_exc)
+                except Exception:
+                    logger.exception("Gagal mengamankan media Telegram ke antrean FTP")
+                suffix = "File diamankan di antrean lokal sementara. Setelah FTP pulih, jalankan /ftpretry." if queued else "File gagal masuk FTP dan antrean lokal juga gagal."
+                raise RuntimeError(str(ftp_exc) + "\n" + suffix) from None
             try:
                 await st.delete()
             except Exception:
                 pass
-            await msg.reply_text(f"✅ Upload berhasil\n📁 <code>htdocs/{html.escape(category)}/{html.escape(fname)}</code>", parse_mode='HTML')
+            await msg.reply_text(f"✅ Upload terverifikasi\n📁 <code>{html.escape(result['path'])}</code>\n📦 <code>{format_size(result['size'])}</code>", parse_mode='HTML')
         finally:
             try:
                 if os.path.exists(lpath): os.remove(lpath)
@@ -3289,8 +3912,8 @@ async def handle_text_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not prompt:
         await msg.reply_text("Tulis pertanyaan lu setelah menyebut bot, bro.")
         return
-    if not ai_client:
-        await msg.reply_text("AI belum dikonfigurasi. Isi GEMINI_API_KEY di file .env lalu restart bot.")
+    if not ai_is_configured():
+        await msg.reply_text("AI belum dikonfigurasi. Isi GROQ_API_KEY di file .env lalu restart bot. Jangan kirim kunci ke chat.")
         return
     status = await msg.reply_text("🧠 Sedang berpikir...")
     await ai_reply(update, context, prompt, status)
@@ -3378,8 +4001,8 @@ async def guardian_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💽 Disk bebas: <code>{format_size(disk.free)}</code>\n"
             f"🧾 Log: <code>{log_state}</code>\n"
             f"🔁 Supervisor: <code>{html.escape(services)}</code>\n"
-            f"🗄️ Vault lokal: <code>{html.escape(DOWNLOADS_DIR)}</code>\n"
-            f"📦 File tersimpan: <code>{sum(len(files) for _, _, files in os.walk(DOWNLOADS_DIR))}</code>\n\n"
+            f"🧰 Cache sementara lokal: <code>{html.escape(DOWNLOADS_DIR)}</code>\n"
+            f"📦 Item cache lokal: <code>{sum(len(files) for _, _, files in os.walk(DOWNLOADS_DIR))}</code>\n\n"
             "Catatan: ini snapshot kesehatan, bukan jaminan HP hidup saat mati total. Untuk auto-restart, gunakan Termux:Boot + runit atau supervisor hosting.",
             parse_mode="HTML")
     except Exception as exc:
@@ -3410,7 +4033,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• <code>/remember</code>, <code>/memories</code>, <code>/forgetmemory</code>, <code>/guardian</code>\n"
         f"• <code>/kanban</code>, <code>/todo</code>, <code>/weather</code>, <code>/poll</code>\n"
         f"• <code>/short</code>, <code>/qr</code>, <code>/trans</code>, <code>/genpass</code>\n"
-        f"• <code>/backup</code>, <code>/list</code>, <code>/quota</code>, <code>/search</code>, <code>/sync</code>\n"
+        f"• <code>/backup</code>, <code>/list</code>, <code>/quota</code>, <code>/search</code>, <code>/sync</code>, <code>/mergepdf</code>, <code>/ftptest</code>, <code>/ftpretry</code>\n"
         f"• Owner: <code>/adminpanel</code>, <code>/bots</code>, <code>/downloadstats</code>\n"
         f"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
     )
@@ -3439,6 +4062,118 @@ async def bots_control_tower_command(update: Update, context: ContextTypes.DEFAU
         lines.append(f"{emoji} Bot {idx}: <code>{username}</code> · <b>{html.escape(status)}</b> · {since_text}")
     lines.extend(["━━━━━━━━━━━━━━━━━━━━", "ℹ️ Panel ini memantau worker di proses Python yang sama; tidak menampilkan token atau kredensial."])
     await msg.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+async def account_status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner-only status for Telegram bot identities and Instagram cookie identities.
+
+    Never returns cookie contents or Telegram tokens. Instagram username/ID are queried
+    using each locally configured cookie file; this can fail even when the file parses.
+    """
+    if not is_owner(update):
+        return
+    msg = update.effective_message
+    if msg is None:
+        return
+    lines = ["🛰️ <b>NEON • ACCOUNT STATUS</b>", "━━━━━━━━━━━━━━━━━━━━", "<b>🤖 TELEGRAM BOTS</b>"]
+    unique_tokens = list(dict.fromkeys(BOT_TOKENS))
+    if not BOT_RUNTIME:
+        lines.append("🟡 Belum ada worker yang melaporkan status.")
+    for idx, token in enumerate(unique_tokens, 1):
+        item = BOT_RUNTIME.get(idx, {})
+        status = item.get("status", "not_started")
+        username = item.get("username")
+        bot_id = item.get("bot_id")
+        emoji = "🟢" if status == "online" else ("🔄" if status in ("starting", "restarting") else "🔴")
+        identity = f"@{html.escape(username)}" if username else "username belum diketahui"
+        ident_id = f"ID <code>{bot_id}</code>" if bot_id else "ID belum diketahui"
+        lines.append(f"{emoji} Bot {idx}: {identity} · {ident_id} · <b>{html.escape(status)}</b>")
+
+    lines += ["━━━━━━━━━━━━━━━━━━━━", "<b>🍪 INSTAGRAM COOKIE ACCOUNTS</b>"]
+    candidates = []
+    for raw in (INSTAGRAM_COOKIES_FILE, SOCIAL_COOKIES_FILE, get_config("INSTAGRAM_COOKIES_DIR", "").strip()):
+        if not raw:
+            continue
+        path = raw if os.path.isabs(raw) else os.path.join(PROJECT_DIR, raw)
+        if os.path.isdir(path):
+            try:
+                candidates.extend(os.path.join(path, name) for name in sorted(os.listdir(path))
+                                 if name.lower().endswith((".txt", ".cookies")))
+            except OSError:
+                pass
+        else:
+            candidates.append(path)
+    seen = set()
+    cookie_files = []
+    for path in candidates:
+        normalized = os.path.abspath(path)
+        if normalized not in seen:
+            seen.add(normalized)
+            cookie_files.append(normalized)
+    if not cookie_files:
+        lines.append("⚪ Belum ada file cookies yang dikonfigurasi.")
+    else:
+        for idx, path in enumerate(cookie_files, 1):
+            filename = html.escape(os.path.basename(path))
+            if not os.path.isfile(path) or not os.access(path, os.R_OK):
+                lines.append(f"🔴 <code>{filename}</code> · file tidak ditemukan/tidak bisa dibaca")
+                continue
+            try:
+                cookie_map = {}
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    for row in fh:
+                        row = row.rstrip("\r\n")
+                        if not row or row.lstrip().startswith("#"):
+                            continue
+                        parts = row.split("\t")
+                        if len(parts) >= 7 and "instagram.com" in parts[0].lower():
+                            cookie_map[parts[5]] = parts[6]
+                ds_id = cookie_map.get("ds_user_id", "")
+                sessionid = cookie_map.get("sessionid", "")
+                if not sessionid:
+                    lines.append(f"🔴 <code>{filename}</code> · sessionid tidak ditemukan · ID akun tidak terverifikasi")
+                    continue
+                # Use only the cookie file locally; never echo cookie values to the chat/log.
+                try:
+                    async with httpx.AsyncClient(timeout=12, follow_redirects=True, headers={
+                        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
+                        "X-IG-App-ID": "936619743392459",
+                        "Accept": "application/json, text/plain, */*",
+                        "Referer": "https://www.instagram.com/"
+                    }) as client:
+                        response = await client.get(
+                            "https://www.instagram.com/api/v1/accounts/current_user/?edit=true",
+                            cookies=cookie_map
+                        )
+                    # Instagram can return HTML, an empty body, or non-JSON challenge pages.
+                    # Treat these as an unverified response rather than crashing the whole report.
+                    data = {}
+                    json_error = False
+                    if response.status_code == 200:
+                        try:
+                            parsed = response.json()
+                            data = parsed if isinstance(parsed, dict) else {}
+                        except (ValueError, json.JSONDecodeError):
+                            json_error = True
+                    user = data.get("user", {}) if isinstance(data, dict) else {}
+                    username = user.get("username") if isinstance(user, dict) else None
+                    account_id = user.get("pk") if isinstance(user, dict) else None
+                    if response.status_code == 200 and username and account_id:
+                        lines.append(f"🟢 <code>{filename}</code> · @{html.escape(str(username))} · ID <code>{html.escape(str(account_id))}</code> · sesi terverifikasi")
+                    elif response.status_code in (401, 403, 429):
+                        code = response.status_code
+                        lines.append(f"🔴 <code>{filename}</code> · ID cookie <code>{html.escape(ds_id or '—')}</code> · sesi ditolak/ditantang (HTTP {code})")
+                    else:
+                        reason = "respons bukan JSON/halaman tantangan" if json_error else f"identitas belum terverifikasi (HTTP {response.status_code})"
+                        lines.append(f"🟡 <code>{filename}</code> · ID cookie <code>{html.escape(ds_id or '—')}</code> · {reason}")
+                except Exception as exc:
+                    lines.append(f"🟡 <code>{filename}</code> · ID cookie <code>{html.escape(ds_id or '—')}</code> · cek jaringan gagal ({html.escape(type(exc).__name__)})")
+            except Exception as exc:
+                lines.append(f"🔴 <code>{filename}</code> · gagal membaca file ({html.escape(type(exc).__name__)})")
+    lines += ["━━━━━━━━━━━━━━━━━━━━", "⚠️ Username/ID Instagram hanya ditampilkan bila endpoint mengonfirmasi. ds_user_id dari file saja bukan bukti sesi aktif. Tidak ada token atau isi cookies yang ditampilkan."]
+    # Keep within Telegram message limit.
+    report = "\n".join(lines)
+    await msg.reply_text(report[:3900], parse_mode="HTML", disable_web_page_preview=True)
 
 
 async def admin_intelligence_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3527,6 +4262,38 @@ async def tracked_downloader(update: Update, context: ContextTypes.DEFAULT_TYPE)
         job["finished"] = get_wib_now()
 
 
+
+async def ftp_retry_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Retry emergency outbox files after FTP credentials/path/permissions are fixed."""
+    if not is_owner(update):
+        return
+    msg = update.effective_message
+    if msg is None:
+        return
+    os.makedirs(PENDING_FTP_DIR, exist_ok=True)
+    files = [os.path.join(PENDING_FTP_DIR, n) for n in sorted(os.listdir(PENDING_FTP_DIR))
+             if os.path.isfile(os.path.join(PENDING_FTP_DIR, n)) and not n.endswith((".part", ".tmp"))]
+    if not files:
+        await msg.reply_text("🟢 Antrean FTP kosong. Tidak ada file yang menunggu upload.")
+        return
+    status = await msg.reply_text(f"🔁 Mencoba menyimpan {len(files)} file dari antrean lokal ke FTP…")
+    ok, failed, bytes_ok = 0, [], 0
+    for path in files:
+        try:
+            info = await asyncio.to_thread(upload_download_to_ftp, path, OWNER_ID or "owner")
+            bytes_ok += int(info.get("size", 0))
+            os.remove(path)
+            ok += 1
+        except Exception as exc:
+            failed.append(f"{os.path.basename(path)} — {type(exc).__name__}: {str(exc)[:100]}")
+    report = ["☁️ <b>NEON • FTP OUTBOX RETRY</b>", "━━━━━━━━━━━━━━━━━━━━",
+              f"🟢 Berhasil dipindah ke FTP: <b>{ok}</b>", f"📦 Data berhasil: <b>{html.escape(format_size(bytes_ok))}</b>",
+              f"🟠 Masih tertahan: <b>{len(failed)}</b>"]
+    if failed:
+        report.append("\n".join("• " + html.escape(x) for x in failed[:8]))
+    report.append("File antrean yang berhasil diverifikasi sudah dihapus dari cache lokal.")
+    await status.edit_text("\n".join(report), parse_mode="HTML")
+
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(msg="Exception occurred:", exc_info=context.error)
 
@@ -3535,13 +4302,19 @@ def register_handlers(app: Application):
     app.add_handler(CommandHandler("panel", panel_command))
     app.add_handler(CommandHandler("status", status_command))
     app.add_handler(CommandHandler("ftpstatus", ftp_status_command))
+    app.add_handler(CommandHandler("ftptest", ftp_test_command))
+    app.add_handler(CommandHandler("ftpretry", ftp_retry_command))
     app.add_handler(CommandHandler("dlcheck", downloader_check_command))
     app.add_handler(CommandHandler("ighelp", instagram_help_command))
     app.add_handler(CommandHandler("igcheck", instagram_check_command))
     app.add_handler(CommandHandler("cookiestatus", cookie_status_command))
     app.add_handler(CommandHandler("igstatus", cookie_status_command))
     app.add_handler(CommandHandler("health", health_command))
+    app.add_handler(CommandHandler("diag", diag_command))
+    app.add_handler(CommandHandler("diagnostics", diag_command))
+    app.add_handler(CommandHandler("ping", ping_command))
     app.add_handler(CommandHandler("bots", bots_control_tower_command))
+    app.add_handler(CommandHandler("accountstatus", account_status_command))
     app.add_handler(CommandHandler("adminpanel", admin_intelligence_command))
     app.add_handler(CommandHandler("downloadstats", admin_intelligence_command))
     app.add_handler(CommandHandler("info", media_info_command))
@@ -3549,6 +4322,7 @@ def register_handlers(app: Application):
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CommandHandler("ai", ai_chat_command))
+    app.add_handler(CommandHandler("aiinfo", ai_info_command))
     app.add_handler(CommandHandler("resetai", reset_ai_command))
     app.add_handler(CommandHandler("remember", remember_command))
     app.add_handler(CommandHandler("memories", memories_command))
@@ -3590,6 +4364,7 @@ def register_handlers(app: Application):
     app.add_handler(CommandHandler("weather", weather_command))
     app.add_handler(CommandHandler("poll", poll_command))
     app.add_handler(CommandHandler("battery", battery_status_command))
+    app.add_handler(CommandHandler("deviceinfo", device_info_command))
     app.add_handler(CommandHandler("netinfo", netinfo_command))
     
     # DOWNLOADERS
@@ -3636,21 +4411,22 @@ async def _run_single_bot_once(token: str, index: int):
     try:
         application = Application.builder().token(token).build()
         bot_info = await application.bot.get_me()
-        BOT_RUNTIME[index] = {"status": "starting", "updated": get_wib_now(), "username": bot_info.username}
+        BOT_RUNTIME[index] = {"status": "starting", "updated": get_wib_now(), "username": bot_info.username, "bot_id": bot_info.id}
         register_handlers(application)
         await application.initialize()
         await application.start()
         if application.updater is None:
             raise RuntimeError("Updater tidak tersedia di aplikasi Telegram")
         await application.updater.start_polling(drop_pending_updates=False)
-        BOT_RUNTIME[index] = {"status": "online", "updated": get_wib_now(), "username": bot_info.username}
+        BOT_RUNTIME[index] = {"status": "online", "updated": get_wib_now(), "username": bot_info.username, "bot_id": bot_info.id}
         logger.info("🟢 BOT %s/%s ONLINE: @%s (ID %s)", index, len(BOT_TOKENS), bot_info.username, bot_info.id)
         print(f"\033[92m  ✓ BOT {index}/{len(BOT_TOKENS)} ONLINE \033[0m → \033[96m@{bot_info.username}\033[0m")
         await asyncio.Event().wait()
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        BOT_RUNTIME[index] = {"status": "error", "updated": get_wib_now(), "username": BOT_RUNTIME.get(index, {}).get("username")}
+        previous = BOT_RUNTIME.get(index, {})
+        BOT_RUNTIME[index] = {"status": "error", "updated": get_wib_now(), "username": previous.get("username"), "bot_id": previous.get("bot_id"), "error_type": type(exc).__name__}
         logger.exception("🔴 BOT %s gagal berjalan: %s", index, exc)
         print(f"\033[91m  ✗ BOT {index} GAGAL: {html.escape(str(exc)[:220])}\033[0m")
     finally:
@@ -3731,6 +4507,7 @@ def print_instagram_cookie_startup_status():
 
 
 async def main():
+    clean_local_temp_files()
     show_termux_banner()
     logger.info("🔐 Mode konfigurasi: %s (nilai rahasia tidak ditampilkan).", RUNTIME_MODE)
     if not OWNER_ID:
@@ -3752,13 +4529,13 @@ async def main():
         logger.exception("Database AI gagal diinisialisasi")
     try:
         keep_alive()
-        logger.info("🌐 Health endpoint dimulai pada port %s (ini bukan jaminan uptime Replit).", os.getenv("PORT", "8080"))
+        logger.info("🌐 Health endpoint dimulai pada port %s (ini bukan jaminan uptime Replit).", get_config("PORT", "8080"))
     except Exception:
         logger.exception("Keep-alive server gagal dimulai; bot tetap akan dicoba.")
     if len(BOT_TOKENS) > 1:
         logger.info("Multi-bot runtime siap untuk %s token Telegram unik.", len(BOT_TOKENS))
     logger.info("🚀 Menyiapkan %s bot Telegram...", len(BOT_TOKENS))
-    logger.info("🧠 V25 modules aktif: downloader telemetry, multi-bot runtime tower, admin intelligence dashboard.")
+    logger.info("🧠 V28 modules: downloader telemetry, multi-bot runtime tower, admin intelligence dashboard, safe deep diagnostics, ping.")
     health_app = None
     # Each bot runs independently in the same event loop; shared SQLite history is persistent.
     tasks = [asyncio.create_task(run_single_bot(token, i + 1), name=f"telegram-bot-{i+1}")
