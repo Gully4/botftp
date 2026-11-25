@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: neon-os-v32
+    runtime: python
+    plan: free
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: python neon_gateway.py
+    healthCheckPath: /health
+    envVars:
+      - key: NEON_GATEWAY_HOST
+        value: 0.0.0.0
+      - key: NEON_AUTO_TUNNEL
+        value: "0"
+      - key: NEON_AUTO_START_BOT
+        value: "1"
+      - key: NEON_RESTART_DELAY
+        value: "8"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: BOT_WEB_PORT
+        value: "8080"

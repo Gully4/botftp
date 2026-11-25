@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+logs/
+.neon_cache/
+.neon_pending_ftp/
+*.sqlite3
+*.db

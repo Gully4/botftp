@@ -16,14 +16,25 @@ LOG_DIR.mkdir(exist_ok=True)
 BOT_LOG, GATEWAY_LOG, TUNNEL_LOG = (LOG_DIR / n for n in ("bot.log", "gateway.log", "cloudflared.log"))
 BOT_FILE = Path(os.getenv("NEON_BOT_FILE", "bot.py"))
 if not BOT_FILE.is_absolute(): BOT_FILE = BASE / BOT_FILE
-HOST = os.getenv("NEON_GATEWAY_HOST", "127.0.0.1")
-PORT = int(os.getenv("NEON_GATEWAY_PORT", "8765"))
+HOST = os.getenv("NEON_GATEWAY_HOST", "0.0.0.0")
+def _safe_int_env(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)).strip())
+        return max(minimum, min(maximum, value))
+    except (TypeError, ValueError):
+        log_message = f"[NEON CONFIG] {name} tidak valid; memakai default {default}."
+        print(log_message, flush=True)
+        return default
+
+# PaaS providers inject PORT; explicit NEON_GATEWAY_PORT overrides it.
+PORT = _safe_int_env("NEON_GATEWAY_PORT", _safe_int_env("PORT", 8765, 1, 65535), 1, 65535)
 API_KEY = os.getenv("NEON_API_KEY", "").strip()
-RESTART_DELAY = max(3, min(300, int(os.getenv("NEON_RESTART_DELAY", "8"))))
+RESTART_DELAY = _safe_int_env("NEON_RESTART_DELAY", 8, 3, 300)
 AUTO_START = os.getenv("NEON_AUTO_START_BOT", "1").lower() not in {"0", "false", "no"}
 AUTO_TUNNEL = os.getenv("NEON_AUTO_TUNNEL", "1").lower() not in {"0", "false", "no"}
 SYNC_URL = os.getenv("NEON_HOSTING_SYNC_URL", "").strip()
 SYNC_TOKEN = os.getenv("NEON_HOSTING_SYNC_TOKEN", "").strip()
+PUBLIC_BASE_URL = os.getenv("NEON_PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 _lock = threading.RLock()
 _bot: Optional[subprocess.Popen] = None
@@ -172,7 +183,7 @@ def _start_tunnel() -> None:
     if not AUTO_TUNNEL: log("AUTO TUNNEL disabled by NEON_AUTO_TUNNEL=0"); return
     binary = _find_cloudflared()
     if not binary:
-        log("CLOUDFLARED NOT FOUND. Pastikan paket cloudflared tersedia pada Replit Nix.")
+        log("CLOUDFLARED NOT FOUND. Untuk PaaS lain, gunakan domain publik bawaan platform dan set NEON_AUTO_TUNNEL=0 + NEON_PUBLIC_BASE_URL.")
         return
     if _tunnel is not None and _tunnel.poll() is None: return
     try:
@@ -206,6 +217,11 @@ def on_startup():
     threading.Thread(target=_tunnel_supervisor, daemon=True).start()
     if _bot_enabled: _spawn_bot()
     _start_tunnel()
+    if PUBLIC_BASE_URL:
+        if PUBLIC_BASE_URL.startswith("https://"):
+            threading.Thread(target=sync_url_to_hosting, args=(PUBLIC_BASE_URL,), daemon=True).start()
+        else:
+            log("NEON_PUBLIC_BASE_URL diabaikan: URL publik wajib HTTPS.")
     log(f"NEON GATEWAY V32 READY host={HOST} port={PORT}")
 
 @app.on_event("shutdown")

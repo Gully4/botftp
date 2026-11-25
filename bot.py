@@ -62,6 +62,14 @@ def get_config(key, default=""):
         return fallback
     return default
 
+def safe_int(value, default, name="setting"):
+    """Parse integer settings safely; bad values fall back without crashing startup."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        print(f"[NEON CONFIG] {name} bukan angka valid; memakai default {default}.")
+        return int(default)
+
 def detect_runtime_mode():
     """Identify hosting environment without logging any secret values."""
     if any(get_config(key) for key in ("REPL_ID", "REPLIT_DEPLOYMENT", "REPLIT_DOMAINS")):
@@ -76,9 +84,9 @@ BOT_VERSION = "v32.0 NEON OS • REPLIT REMOTE CONTROL EDITION"
 AI_PROVIDER = "Groq"
 AI_MODEL = get_config("GROQ_MODEL", "openai/gpt-oss-20b")
 AI_VISION_MODEL = get_config("GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
-AI_DAILY_LIMIT = max(1, min(100, int(get_config("AI_DAILY_LIMIT", "20"))))
-AI_COOLDOWN_SECONDS = max(1, min(60, int(get_config("AI_COOLDOWN_SECONDS", "4"))))
-AI_MAX_PROMPT_CHARS = max(500, min(12000, int(get_config("AI_MAX_PROMPT_CHARS", "6000"))))
+AI_DAILY_LIMIT = max(1, min(100, safe_int(get_config("AI_DAILY_LIMIT", "20"), 20, "AI_DAILY_LIMIT")))
+AI_COOLDOWN_SECONDS = max(1, min(60, safe_int(get_config("AI_COOLDOWN_SECONDS", "4"), 4, "AI_COOLDOWN_SECONDS")))
+AI_MAX_PROMPT_CHARS = max(500, min(12000, safe_int(get_config("AI_MAX_PROMPT_CHARS", "6000"), 6000, "AI_MAX_PROMPT_CHARS")))
 
 # Set Waktu Indonesia Barat (WIB = UTC+7)
 WIB = timezone(timedelta(hours=7))
@@ -101,7 +109,7 @@ def health():
             "configured_bots": len(BOT_TOKENS) if "BOT_TOKENS" in globals() else 0}
 
 def run_web():
-    port = int(get_config('PORT', '8080'))
+    port = safe_int(get_config('BOT_WEB_PORT', '8080'), 8080, 'BOT_WEB_PORT')
     app_web.run(host='0.0.0.0', port=port)
 
 def keep_alive():
@@ -156,7 +164,7 @@ logger.info("Multi-bot mode aktif; %s token unik akan dijalankan jika terkonfigu
 FTP_HOST = get_config("FTP_HOST", "").strip()
 FTP_USER = get_config("FTP_USER", "").strip()
 FTP_PASS = get_config("FTP_PASS", "").strip()
-FTP_PORT = int(get_config("FTP_PORT", "21"))
+FTP_PORT = safe_int(get_config("FTP_PORT", "21"), 21, "FTP_PORT")
 
 def _load_ftp_accounts():
     accounts = []
@@ -166,7 +174,7 @@ def _load_ftp_accounts():
         user = get_config(f"{prefix}_USER", FTP_USER if idx == 1 else "").strip()
         password = get_config(f"{prefix}_PASS", FTP_PASS if idx == 1 else "").strip()
         try:
-            port = int(get_config(f"{prefix}_PORT", str(FTP_PORT if idx == 1 else 21)))
+            port = safe_int(get_config(f"{prefix}_PORT", str(FTP_PORT if idx == 1 else 21)), 21, f"{prefix}_PORT")
         except (TypeError, ValueError):
             port = 21
         # Preserve configured/incomplete extra slots for status display only if any field exists.
@@ -201,7 +209,7 @@ if X_COOKIES_FILE and not os.path.isabs(X_COOKIES_FILE):
     X_COOKIES_FILE = os.path.join(PROJECT_DIR, X_COOKIES_FILE)
 # Default keeps best available quality; optionally set DOWNLOAD_MAX_HEIGHT=720 etc.
 DOWNLOAD_MAX_HEIGHT = get_config("DOWNLOAD_MAX_HEIGHT", "").strip()
-DOWNLOAD_TIMEOUT_SECONDS = max(60, min(1800, int(get_config("DOWNLOAD_TIMEOUT_SECONDS", "900"))))
+DOWNLOAD_TIMEOUT_SECONDS = max(60, min(1800, safe_int(get_config("DOWNLOAD_TIMEOUT_SECONDS", "900"), 900, "DOWNLOAD_TIMEOUT_SECONDS")))
 # Local cache for temporary processing; completed downloads are archived to FTP.
 DOWNLOADS_DIR_RAW = get_config("DOWNLOADS_DIR", ".neon_cache").strip() or ".neon_cache"
 DOWNLOADS_DIR = os.path.abspath(DOWNLOADS_DIR_RAW if os.path.isabs(DOWNLOADS_DIR_RAW) else os.path.join(PROJECT_DIR, DOWNLOADS_DIR_RAW))
